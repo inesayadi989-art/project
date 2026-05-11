@@ -1,0 +1,44 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: 'Inter', system-ui, sans-serif;
+  --color-primary-50: #eff6ff;
+  --color-primary-100: #dbeafe;
+  --color-primary-200: #bfdbfe;
+  --color-primary-300: #93c5fd;
+  --color-primary-400: #60a5fa;
+  --color-primary-500: #3b82f6;
+  --color-primary-600: #2563eb;
+  --color-primary-700: #1d4ed8;
+  --color-primary-800: #1e40af;
+  --color-primary-900: #0b122d;
+  --color-secondary-500: #1e3a8a;
+  --color-secondary-600: #1d4ed8;
+  --color-accent-500: #67e8f9;
+  --color-accent-600: #22d3ee;
+}
+
+@layer base {
+  * { box-sizing: border-box; }
+  body { margin: 0; background-color: var(--color-primary-900); color: #f8fafc; -webkit-font-smoothing: antialiased; font-family: 'Inter', system-ui, sans-serif; }
+}
+
+@layer components {
+  .btn-primary { @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-orange-800 text-white font-medium rounded-lg hover:bg-orange-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer; }
+  .btn-subscribe { @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-orange-800 text-white font-semibold rounded-lg hover:bg-orange-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer; }
+  .btn-secondary { @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-white text-gray-700 font-medium rounded-lg border border-gray-300 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer; }
+  .btn-cart { @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-orange-800 text-white font-medium rounded-lg hover:bg-orange-900 focus:outline-none focus:ring-2 focus:ring-orange-500 focus:ring-offset-2 transition-all duration-200 disabled:opacity-50 disabled:cursor-not-allowed text-sm cursor-pointer; }
+  .btn-danger { @apply inline-flex items-center justify-center gap-2 px-4 py-2 bg-red-600 text-white font-medium rounded-lg hover:bg-red-700 focus:outline-none transition-all duration-200 text-sm cursor-pointer; }
+  .input-field { @apply block w-full px-3 py-2 border border-gray-300 rounded-lg text-black placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-accent-500 focus:border-transparent transition-all duration-200 text-sm bg-white; }
+  .card { @apply bg-white rounded-xl shadow-sm border border-gray-100; }
+  .stat-card { @apply bg-white rounded-xl p-6 shadow-sm border border-gray-100; }
+}
+
+@layer utilities {
+  .line-clamp-1 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 1; }
+  .line-clamp-2 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; }
+  .line-clamp-3 { overflow: hidden; display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 3; }
+  .scrollbar-hide { -ms-overflow-style: none; scrollbar-width: none; }
+  .scrollbar-hide::-webkit-scrollbar { display: none; }
+}
