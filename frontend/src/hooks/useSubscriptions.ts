@@ -46,22 +46,16 @@ export function useVerifySubscription() {
   });
 }
 
-export function useSendSubscriptionOtp() {
-  return useMutation({
-    mutationFn: async (payload: { subscriptionId: string; phone: string }) => {
-      return api.sendSubscriptionOtp(payload.subscriptionId, payload.phone);
-    },
-  });
-}
-
-export function useVerifySubscriptionOtp() {
+export function useRequestSubscriptionRenewal() {
   const queryClient = useQueryClient();
   return useMutation({
-    mutationFn: async (payload: { subscriptionId: string; code: string }) => {
-      return api.verifySubscriptionOtp(payload.subscriptionId, payload.code);
+    mutationFn: async (payload: any = {}) => {
+      const response = await api.requestSellerSubscriptionRenewal(payload);
+      return response;
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['seller-subscription'] });
     },
   });
 }
+

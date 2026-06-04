@@ -17,6 +17,9 @@ export interface Profile {
 export interface Store {
   id: string;
   owner_id: string;
+  owner_name?: string;
+  owner_email?: string;
+  owner_is_banned?: boolean;
   name: string;
   slug: string;
   description: string | null;
@@ -31,14 +34,30 @@ export interface Store {
   commission_rate: number;
   total_sales: number;
   total_revenue: number;
+  wallet_balance?: number;
+  threshold_notified?: boolean;
   rating_avg: number;
   review_count: number;
   subscription_status?: string | null;
   subscription_plan_id?: string | null;
+  subscription_plan_name?: string | null;
   subscription_interval?: string | null;
   subscription_current_period_end?: string | null;
   subscription_next_payment_date?: string | null;
   created_at: string;
+}
+
+export interface VendorSettlement {
+  id: string;
+  store_id: string;
+  seller_id: string;
+  amount: number;
+  admin_id: string | null;
+  note: string | null;
+  created_at: string;
+  store_name?: string;
+  seller_name?: string;
+  admin_name?: string;
 }
 
 export interface SubscriptionPlan {
@@ -63,14 +82,30 @@ export interface SellerSubscription {
   amount: number;
   currency: string;
   status: string;
-  current_period_end: string | null;
+  payment_status?: string | null;
+  end_date: string | null;
   next_payment_date: string | null;
   payment_url: string | null;
   konnect_payment_id: string | null;
   konnect_session_id: string | null;
   metadata: Record<string, unknown> | null;
+  comment?: string | null;
   created_at: string;
   updated_at: string;
+}
+
+export interface SubscriptionNotification {
+  id: string;
+  seller_id: string | null;
+  recipient_id: string | null;
+  recipient_role: 'seller' | 'admin';
+  subscription_id: string;
+  type: string;
+  title: string;
+  message: string;
+  is_read: boolean;
+  read_at: string | null;
+  created_at: string;
 }
 
 export interface Category {
@@ -137,7 +172,7 @@ export interface Order {
   id: string;
   order_number: string;
   customer_id: string;
-  status: 'pending' | 'processing' | 'shipped' | 'delivered' | 'cancelled';
+  status: 'pending' | 'processing' | 'pending_vendor' | 'pending_vendor_confirmation' | 'confirmed' | 'paid_confirmed' | 'completed' | 'rejected' | 'rejected_by_vendor' | 'shipped' | 'delivered' | 'cancelled';
   payment_method: string;
   payment_status: string;
   subtotal: number;
@@ -149,6 +184,15 @@ export interface Order {
   ship_city: string;
   ship_governorate: string;
   notes: string | null;
+  customer_name?: string;
+  customer_email?: string;
+  customer_phone?: string;
+  customer?: {
+    id: string;
+    full_name: string;
+    email?: string;
+    phone?: string;
+  };
   created_at: string;
   order_items?: OrderItem[];
 }
@@ -159,7 +203,8 @@ export interface OrderItem {
   product_id: string;
   store_id: string;
   product_name: string;
-  product_image: string | null;
+  product_image?: string | null;
+  image_url?: string | null;
   quantity: number;
   unit_price: number;
   total_price: number;

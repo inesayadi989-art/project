@@ -7,8 +7,12 @@
     "start": "node server.js",
     "dev": "nodemon server.js",
     "setup": "node setup.js",
+    "check-expired": "node scripts/check_expired_subscriptions.js",
+    "verify-bi": "node scripts/verify_bi_integrity.js",
+    "backfill-notifs": "node scripts/backfill_subscription_notifications.js",
     "seed-test-users": "node seed_test_users.js",
     "seed-full": "node seed_full_data.js",
+    "reset-sellers": "node reset_sellers_and_seed_products.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [
@@ -27,10 +31,10 @@
     "dotenv": "^16.3.1",
     "express": "^4.18.2",
     "express-validator": "^7.0.1",
-    "fuse.js": "^7.3.0",
     "jsonwebtoken": "^9.0.2",
     "multer": "^1.4.5-lts.1",
     "mysql2": "^3.6.5",
+    "nodemailer": "^8.0.10",
     "twilio": "^5.3.0",
     "uuid": "^14.0.0"
   },

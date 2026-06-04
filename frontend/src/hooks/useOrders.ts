@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../lib/api';
+import { useAuthStore } from '../store/authStore';
 import type { Order, OrderItem, CartItem } from '../lib/types';
 
 export function useOrders(userId: string) {
@@ -27,6 +28,8 @@ interface CreateOrderInput {
 
 export function useCreateOrder() {
   const queryClient = useQueryClient();
+  const { isClientMode } = useAuthStore();
+
   return useMutation({
     mutationFn: async (input: CreateOrderInput) => {
       const orderItems = input.items.map((item) => ({
@@ -42,7 +45,9 @@ export function useCreateOrder() {
       if (!storeId && input.items[0]?.product_id) {
         try {
           const productDetails = await api.getProduct(input.items[0].product_id);
-          storeId = Number(productDetails.product?.store_id);
+          storeId =
+            Number(productDetails.product?.store_id) ||
+            Number(productDetails.product?.store?.id);
         } catch (error) {
           console.error('Failed to fetch product details:', error);
         }
@@ -63,11 +68,13 @@ export function useCreateOrder() {
           city: input.shipCity,
           governorate: input.shipGovernorate,
         },
+        ...(isClientMode ? { mode: 'client' } : {}),
       };
       return await api.createOrder(orderData);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['orders'] });
+      queryClient.invalidateQueries({ queryKey: ['notifications'] });
     },
   });
 }
@@ -77,9 +84,11 @@ export function useSellerOrders(storeId: string) {
     queryKey: ['seller-orders', storeId],
     queryFn: async () => {
       const { orders } = await api.getSellerOrders();
-      return orders as (OrderItem & { order: Order })[];
+      return (orders ?? []) as Order[];
     },
     enabled: !!storeId,
+    retry: 1,
+    staleTime: 60000,
   });
 }
 

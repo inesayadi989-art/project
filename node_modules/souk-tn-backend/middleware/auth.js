@@ -5,18 +5,14 @@ const authenticateToken = (req, res, next) => {
   const authHeader = req.headers['authorization'];
   const token = authHeader && authHeader.split(' ')[1];
 
-  console.log('Auth middleware:', { hasAuthHeader: !!authHeader, hasToken: !!token, tokenStart: token?.substring(0, 20) });
-
   if (!token) {
     return res.status(401).json({ error: 'Access token required' });
   }
 
   jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
     if (err) {
-      console.log('JWT verify error:', err.message);
       return res.status(403).json({ error: 'Invalid token' });
     }
-    console.log('JWT verified for user:', user);
     req.user = user;
     next();
   });
@@ -25,28 +21,54 @@ const authenticateToken = (req, res, next) => {
 // Middleware to check subscription for sellers
 const requireSubscription = async (req, res, next) => {
   try {
+    console.log('REQUIRE SUBSCRIPTION middleware hit', { user: req.user });
     if (req.user.role === 'seller') {
+      console.log('REQUIRE SUBSCRIPTION checking seller_id', req.user.userId);
+      console.log('REQUIRE SUBSCRIPTION query start');
       const [subscriptions] = await req.db.execute(
-        `SELECT status, current_period_end
-         FROM subscriptions
-         WHERE user_id = ? AND status = 'active'
-         ORDER BY current_period_end DESC
+        `SELECT status, payment_status, end_date
+         FROM seller_subscriptions
+         WHERE seller_id = ?
+         ORDER BY created_at DESC
          LIMIT 1`,
         [req.user.userId]
       );
+      console.log('REQUIRE SUBSCRIPTION query complete', { subscriptionsCount: subscriptions.length });
 
       if (subscriptions.length === 0) {
         return res.status(403).json({
           error: 'subscription_required',
-          message: 'Vous devez souscrire à un abonnement actif pour accéder à cette fonctionnalité.'
+          message: 'Vous devez soumettre une demande d abonnement vendeur et attendre l approbation de l administrateur.'
         });
       }
 
       const subscription = subscriptions[0];
       const now = new Date();
-      const currentPeriodEnd = subscription.current_period_end ? new Date(subscription.current_period_end) : null;
+      const activeUntil = subscription.end_date ? new Date(subscription.end_date) : null;
 
-      if (!currentPeriodEnd || currentPeriodEnd < now) {
+      if (subscription.status === 'pending_admin') {
+        return res.status(403).json({
+          error: 'subscription_pending',
+          message: 'Votre demande d abonnement est en cours de confirmation par l administrateur.'
+        });
+      }
+
+      if (subscription.status === 'rejected') {
+        return res.status(403).json({
+          error: 'subscription_rejected',
+          message: 'Votre demande d abonnement a été rejetée. Veuillez soumettre une nouvelle demande.'
+        });
+      }
+
+      // Require active and paid subscription for sellers to access protected routes
+      if (!(subscription.status === 'active' && subscription.payment_status === 'paid')) {
+        return res.status(403).json({
+          error: 'subscription_required',
+          message: 'Vous devez avoir un abonnement vendeur actif et payé pour accéder à cette fonctionnalité.'
+        });
+      }
+
+      if (subscription.status === 'active' && (!activeUntil || activeUntil < now)) {
         return res.status(403).json({
           error: 'subscription_expired',
           message: 'Votre abonnement a expiré. Veuillez renouveler votre abonnement.'
@@ -61,7 +83,30 @@ const requireSubscription = async (req, res, next) => {
   }
 };
 
+const authenticateAdmin = (req, res, next) => {
+  const authHeader = req.headers['authorization'];
+  const token = authHeader && authHeader.split(' ')[1];
+
+  if (!token) {
+    return res.status(401).json({ error: 'Access token required' });
+  }
+
+  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
+    if (err) {
+      return res.status(403).json({ error: 'Invalid token' });
+    }
+
+    if (user.role !== 'admin') {
+      return res.status(403).json({ error: 'Admin access required' });
+    }
+
+    req.user = user;
+    next();
+  });
+};
+
 module.exports = {
   authenticateToken,
-  requireSubscription
+  requireSubscription,
+  authenticateAdmin
 };

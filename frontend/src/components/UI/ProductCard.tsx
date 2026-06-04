@@ -1,11 +1,10 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Heart } from 'lucide-react';
+import { ShoppingCart } from 'lucide-react';
 import type { Product } from '../../lib/types';
 import { formatPrice, getDiscountPercent } from '../../lib/types';
 import { useCartStore } from '../../store/cartStore';
 import { useAuthStore } from '../../store/authStore';
-import StarRating from './StarRating';
 import toast from 'react-hot-toast';
 
 export const DEFAULT_PRODUCT_IMAGE =
@@ -16,10 +15,8 @@ interface ProductCardProps {
 }
 
 export default function ProductCard({ product }: ProductCardProps) {
-  const [wishlisted, setWishlisted] = useState(false);
-  const [wishlistLoading, setWishlistLoading] = useState(false);
   const { addItem } = useCartStore();
-  const { user } = useAuthStore();
+  const { user, profile, isClientMode } = useAuthStore();
 
   const primaryImage =
     product.product_images?.find((img) => img.is_primary) ??
@@ -34,6 +31,13 @@ export default function ProductCard({ product }: ProductCardProps) {
       toast.error('Connectez-vous pour ajouter au panier');
       return;
     }
+    // Only customers or sellers in client mode can add to cart
+    if (profile?.role !== 'customer' && !(profile?.role === 'seller' && isClientMode)) {
+      if (profile?.role === 'seller') {
+        toast.error('Activez le mode client pour ajouter au panier');
+      }
+      return;
+    }
     if (product.stock_qty === 0) return;
     addItem(product.id, 1, product.price, {
       id: product.id,
@@ -44,30 +48,6 @@ export default function ProductCard({ product }: ProductCardProps) {
       product_images: product.product_images?.map((img) => ({ url: img.url, is_primary: img.is_primary })),
     });
     toast.success('Produit ajouté au panier');
-  };
-
-  const handleWishlist = async (e: React.MouseEvent) => {
-    e.preventDefault();
-    toast.error('Fonctionnalité des favoris non disponible pour le moment');
-    // Wishlist functionality not implemented yet
-    // if (!user) {
-    //   toast.error('Connectez-vous pour ajouter aux favoris');
-    //   return;
-    // }
-    // setWishlistLoading(true);
-    // try {
-    //   if (wishlisted) {
-    //     // Remove from wishlist
-    //     setWishlisted(false);
-    //     toast.success('Retiré des favoris');
-    //   } else {
-    //     // Add to wishlist
-    //     setWishlisted(true);
-    //     toast.success('Ajouté aux favoris');
-    //   }
-    // } finally {
-    //   setWishlistLoading(false);
-    // }
   };
 
   return (
@@ -94,17 +74,6 @@ export default function ProductCard({ product }: ProductCardProps) {
               </span>
             </div>
           )}
-          <button
-            onClick={handleWishlist}
-            disabled={wishlistLoading}
-            className={`absolute top-2 right-2 p-1.5 rounded-full transition-colors ${
-              wishlisted
-                ? 'bg-red-500 text-white'
-                : 'bg-white text-gray-400 hover:text-red-500'
-            } shadow-sm`}
-          >
-            <Heart size={16} className={wishlisted ? 'fill-current' : ''} />
-          </button>
         </div>
 
         <div className="p-3">
@@ -114,7 +83,6 @@ export default function ProductCard({ product }: ProductCardProps) {
           <h3 className="text-sm font-medium text-gray-900 line-clamp-2 mb-1.5 min-h-[2.5rem]">
             {product.name}
           </h3>
-          <StarRating rating={product.rating_avg} count={product.review_count} />
           <div className="mt-2 flex items-center gap-2">
             <span className="text-sm font-bold text-gray-900">{formatPrice(product.price)}</span>
             {product.compare_price && product.compare_price > product.price && (
@@ -126,7 +94,7 @@ export default function ProductCard({ product }: ProductCardProps) {
           <button
             onClick={handleAddToCart}
             disabled={product.stock_qty === 0}
-            className="mt-3 w-full btn-cart text-xs py-1.5"
+            className="mt-3 w-full btn-primary text-xs py-1.5"
           >
             <ShoppingCart size={14} />
             Ajouter au panier

@@ -39,8 +39,6 @@ class ApiClient {
       headers,
     };
 
-    console.log('API Request:', { url, method: options.method || 'GET', hasToken: !!this.token, tokenStart: this.token?.substring(0, 20) });
-
     if (body && !(body instanceof FormData) && typeof body !== 'string') {
       config.body = JSON.stringify(body);
     }
@@ -50,7 +48,8 @@ class ApiClient {
 
       if (!response.ok) {
         const error = await response.json().catch(() => ({ error: 'Network error' }));
-        throw new Error(error.error || `HTTP ${response.status}`);
+        const errorMessage = error.message || error.error || `HTTP ${response.status}`;
+        throw new Error(errorMessage);
       }
 
       return await response.json();
@@ -73,12 +72,10 @@ class ApiClient {
   }
 
   async signIn(email, password) {
-    console.log('API signIn called with:', { email, hasPassword: !!password });
     const response = await this.request('/auth/login', {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    console.log('API signIn response:', { hasToken: !!response.token, user: response.user });
     if (response.token) {
       this.setToken(response.token);
     }
@@ -114,6 +111,11 @@ class ApiClient {
     return this.request(`/products?${queryString}`);
   }
 
+  async getAssistantProducts(query) {
+    const queryString = new URLSearchParams({ query }).toString();
+    return this.request(`/products/assistant?${queryString}`);
+  }
+
   async getProduct(id) {
     return this.request(`/products/${id}`);
   }
@@ -128,6 +130,13 @@ class ApiClient {
 
   async getSellerStore(sellerId) {
     return this.request(`/products/stores/seller/${encodeURIComponent(sellerId)}`);
+  }
+
+  async createStore(sellerId: string, formData: FormData) {
+    return this.request(`/products/stores/seller/${encodeURIComponent(sellerId)}`, {
+      method: 'POST',
+      body: formData,
+    });
   }
 
   async getSellerProducts(storeSlug) {
@@ -230,6 +239,20 @@ class ApiClient {
     return this.request(`/admin/stores?${queryString}`);
   }
 
+  async getAdminVendorPayouts(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/admin/vendor-payouts?${queryString}`);
+  }
+
+  async getAdminVendorSettlements(params = {}) {
+    const queryString = new URLSearchParams(params).toString();
+    return this.request(`/admin/vendor-settlements?${queryString}`);
+  }
+
+  async markStorePaid(storeId: string | number, note?: string) {
+    return this.request(`/admin/stores/${storeId}/mark-paid`, { method: 'POST', body: JSON.stringify({ note }) });
+  }
+
   async approveStore(storeId, approved) {
     return this.request(`/admin/stores/${storeId}/approve`, {
       method: 'PUT',
@@ -255,10 +278,10 @@ class ApiClient {
   }
 
   // Payment methods (Konnect)
-  async createPaymentSession(orderId) {
+  async createPaymentSession(paymentPayload) {
     return this.request('/payments/create-payment', {
       method: 'POST',
-      body: JSON.stringify({ orderId }),
+      body: JSON.stringify(paymentPayload),
     });
   }
 
@@ -278,7 +301,38 @@ class ApiClient {
     return this.request('/subscriptions/current');
   }
 
-  async createSubscription(planId: number, paymentMethod = 'd17') {
+  async getSubscriptionNotifications() {
+    return this.request('/subscriptions/notifications');
+  }
+
+  async markSubscriptionNotificationRead(notificationId: string | number) {
+    return this.request(`/subscriptions/notifications/${notificationId}/read`, {
+      method: 'POST',
+    });
+  }
+
+  async requestSellerSubscription(comment?: string) {
+    return this.request('/subscriptions/request', {
+      method: 'POST',
+      body: JSON.stringify({ comment }),
+    });
+  }
+
+  async paySellerSubscription(subscriptionId, payload = {}) {
+    return this.request(`/subscriptions/seller/pay/${subscriptionId}`, {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async requestSellerSubscriptionRenewal(payload = {}) {
+    return this.request("/subscriptions/seller/request-renewal", {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  async createSubscription(planId: number, paymentMethod = 'card') {
     return this.request('/subscriptions/create', {
       method: 'POST',
       body: JSON.stringify({ planId, paymentMethod }),
@@ -298,20 +352,6 @@ class ApiClient {
     });
   }
 
-  async sendSubscriptionOtp(subscriptionId: number | string, phone: string) {
-    return this.request(`/subscriptions/otp/send/${subscriptionId}`, {
-      method: 'POST',
-      body: JSON.stringify({ phone }),
-    });
-  }
-
-  async verifySubscriptionOtp(subscriptionId: number | string, code: string) {
-    return this.request(`/subscriptions/otp/verify/${subscriptionId}`, {
-      method: 'POST',
-      body: JSON.stringify({ code }),
-    });
-  }
-
   async simulatePaymentSuccess(subscriptionId: number | string) {
     return this.request(`/subscriptions/simulate-success/${subscriptionId}`, {
       method: 'POST',
@@ -320,6 +360,23 @@ class ApiClient {
 
   async verifySubscription(subscriptionId: number | string) {
     return this.request(`/subscriptions/verify/${subscriptionId}`);
+  }
+
+  // Generic HTTP methods
+  async get(endpoint: string) {
+    return this.request(endpoint, { method: 'GET' });
+  }
+
+  async post(endpoint: string, data?: any) {
+    return this.request(endpoint, { method: 'POST', body: data });
+  }
+
+  async put(endpoint: string, data?: any) {
+    return this.request(endpoint, { method: 'PUT', body: data });
+  }
+
+  async delete(endpoint: string) {
+    return this.request(endpoint, { method: 'DELETE' });
   }
 }
 

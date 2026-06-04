@@ -1,0 +1,15 @@
+{
+  "name": "souk-tn-monorepo",
+  "private": true,
+  "workspaces": [
+    "frontend",
+    "backend"
+  ],
+  "scripts": {
+    "dev": "npm --workspace frontend run dev",
+    "start:backend": "npm --workspace backend run dev",
+    "start:api": "npm --workspace backend start",
+    "start:all": "start cmd /k \"cd /d %cd%\\frontend && npm run dev\" & start cmd /k \"cd /d %cd%\\backend && npm run dev\"",
+    "setup-db": "npm --workspace backend run setup"
+  }
+}

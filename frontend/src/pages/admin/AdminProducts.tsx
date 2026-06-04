@@ -1,39 +1,43 @@
 import { useState } from 'react';
-import { Check, X, Star, StarOff } from 'lucide-react';
+import { Check, X } from 'lucide-react';
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { supabase } from '../../lib/supabase';
+import { api } from '../../lib/api';
 import AdminLayout from './AdminLayout';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
-import BackButton from '../../components/UI/BackButton';
 import { formatPrice } from '../../lib/types';
 import { DEFAULT_PRODUCT_IMAGE } from '../../components/UI/ProductCard';
 import type { Product } from '../../lib/types';
 import toast from 'react-hot-toast';
 
+interface AdminProduct extends Product {
+  store_name?: string;
+  category_name?: string;
+  primary_image?: string;
+}
+
 type StatusFilter = 'all' | 'pending' | 'approved' | 'rejected';
+
+const UPLOADS_URL = import.meta.env.VITE_UPLOADS_URL || 'http://localhost:5000';
+
+function getProductImageUrl(imageUrl?: string | null) {
+  if (!imageUrl) return DEFAULT_PRODUCT_IMAGE;
+  if (imageUrl.startsWith('http')) return imageUrl;
+  return `${UPLOADS_URL}${imageUrl.startsWith('/') ? imageUrl : `/${imageUrl}`}`;
+}
 
 function useAllProducts(statusFilter: StatusFilter) {
   return useQuery({
     queryKey: ['admin-products', statusFilter],
     queryFn: async () => {
-      let query = supabase
-        .from('products')
-        .select(`
-          *,
-          store:stores(id, name),
-          product_images(id, url, is_primary)
-        `)
-        .order('created_at', { ascending: false });
-
+      const params: Record<string, string> = {};
       if (statusFilter === 'pending') {
-        query = query.eq('is_approved', false).eq('is_published', true);
+        params.approved = 'false';
       } else if (statusFilter === 'approved') {
-        query = query.eq('is_approved', true);
+        params.approved = 'true';
       }
-
-      const { data, error } = await query;
-      if (error) throw error;
-      return data as Product[];
+      const queryString = new URLSearchParams(params).toString();
+      const response = await api.getAdminProducts(queryString ? { approved: params.approved } : {});
+      return response.products as AdminProduct[];
     },
   });
 }
@@ -45,29 +49,13 @@ export default function AdminProducts() {
 
   const approveMutation = useMutation({
     mutationFn: async ({ productId, approve }: { productId: string; approve: boolean }) => {
-      const { error } = await supabase
-        .from('products')
-        .update({ is_approved: approve })
-        .eq('id', productId);
-      if (error) throw error;
+      return api.approveProduct(productId, approve);
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-products'] });
     },
   });
 
-  const featureMutation = useMutation({
-    mutationFn: async ({ productId, feature }: { productId: string; feature: boolean }) => {
-      const { error } = await supabase
-        .from('products')
-        .update({ is_featured: feature })
-        .eq('id', productId);
-      if (error) throw error;
-    },
-    onSuccess: () => {
-      queryClient.invalidateQueries({ queryKey: ['admin-products'] });
-    },
-  });
 
   const filterButtons: { key: StatusFilter; label: string }[] = [
     { key: 'pending', label: 'En attente' },
@@ -78,11 +66,7 @@ export default function AdminProducts() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <BackButton />
-
-          <h1 className="text-2xl font-bold text-gray-900">Gestion des produits</h1>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Gestion des produits</h1>
 
         <div className="flex gap-2 flex-wrap">
           {filterButtons.map(({ key, label }) => (
@@ -121,29 +105,24 @@ export default function AdminProducts() {
                 </thead>
                 <tbody className="divide-y divide-gray-50">
                   {products.map((product) => {
-                    const primaryImg = product.product_images?.find((i) => i.is_primary) ?? product.product_images?.[0];
+                    const imageUrl = getProductImageUrl(product.primary_image);
                     return (
                       <tr key={product.id} className="hover:bg-gray-50">
                         <td className="px-4 py-3">
                           <div className="flex items-center gap-3">
                             <img
-                              src={primaryImg?.url ?? DEFAULT_PRODUCT_IMAGE}
+                              src={imageUrl}
                               alt={product.name}
                               className="w-10 h-10 object-cover rounded-lg flex-shrink-0"
                               onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE; }}
                             />
                             <div>
                               <p className="text-sm font-medium text-gray-900 line-clamp-1">{product.name}</p>
-                              {product.is_featured && (
-                                <span className="text-xs text-yellow-600 flex items-center gap-0.5">
-                                  <Star size={10} className="fill-current" /> Vedette
-                                </span>
-                              )}
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {product.store?.name ?? 'N/A'}
+                          {product.store_name ?? product.store?.name ?? 'N/A'}
                         </td>
                         <td className="px-4 py-3 text-sm font-medium text-gray-900">
                           {formatPrice(product.price)}
@@ -178,18 +157,6 @@ export default function AdminProducts() {
                                 <X size={14} /> Rejeter
                               </button>
                             )}
-                            <button
-                              onClick={() => {
-                                featureMutation.mutate({ productId: product.id, feature: !product.is_featured });
-                                toast.success(product.is_featured ? 'Vedette retiré' : 'Produit mis en vedette');
-                              }}
-                              className={`flex items-center gap-1 text-xs font-medium ${
-                                product.is_featured ? 'text-yellow-600 hover:text-yellow-700' : 'text-gray-400 hover:text-yellow-600'
-                              }`}
-                            >
-                              {product.is_featured ? <StarOff size={14} /> : <Star size={14} />}
-                              {product.is_featured ? 'Retirer vedette' : 'Mettre en vedette'}
-                            </button>
                           </div>
                         </td>
                       </tr>

@@ -1,14 +1,14 @@
 import { Link, useLocation, Navigate } from 'react-router-dom';
-import { LayoutDashboard, Package, ShoppingBag, Store } from 'lucide-react';
+import { LayoutDashboard, Package, ShoppingBag, Store, Bell } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
+import { useSellerStore } from '../../hooks/useProducts';
 
-const navItems = [
-  { to: '/seller', label: 'Tableau de bord', icon: LayoutDashboard, exact: true },
-  { to: '/seller/products', label: 'Produits', icon: Package },
-  { to: '/seller/orders', label: 'Commandes', icon: ShoppingBag },
-  { to: '/seller/store', label: 'Ma Boutique', icon: Store },
-  { to: '/seller/subscription', label: 'Abonnement', icon: Package },
-];
+interface NavItem {
+  to: string;
+  label: string;
+  icon: typeof LayoutDashboard;
+  exact?: boolean;
+}
 
 interface SellerLayoutProps {
   children: React.ReactNode;
@@ -16,10 +16,12 @@ interface SellerLayoutProps {
 
 export default function SellerLayout({ children }: SellerLayoutProps) {
   const location = useLocation();
-  const { subscription, subscriptionStatus } = useAuthStore();
+  const { subscription, subscriptionStatus, profile, user } = useAuthStore();
+  const { data: store } = useSellerStore(user?.id ?? '');
   const isSubscriptionPage = location.pathname === '/seller/subscription' || location.pathname.startsWith('/seller/subscription/');
+  const isCreateStorePage = location.pathname === '/seller/store/create';
 
-  if (!isSubscriptionPage && subscriptionStatus === 'loading') {
+  if (!isSubscriptionPage && !isCreateStorePage && (subscriptionStatus === 'loading' || subscriptionStatus === 'idle')) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-gray-50">
         <div className="p-6 bg-white rounded-2xl shadow-sm">
@@ -29,10 +31,19 @@ export default function SellerLayout({ children }: SellerLayoutProps) {
     );
   }
 
-  const hasActiveSubscription = subscription?.status === 'active';
-  if (!isSubscriptionPage && subscriptionStatus !== 'loading' && !hasActiveSubscription) {
+  const hasActiveSubscription = subscription?.status === 'active' && subscription?.payment_status === 'paid';
+  if (!isSubscriptionPage && !isCreateStorePage && subscriptionStatus !== 'loading' && subscriptionStatus !== 'idle' && !hasActiveSubscription) {
     return <Navigate to="/seller/subscription" replace />;
   }
+
+  const navItems: NavItem[] = [
+    { to: '/seller', label: 'Tableau de bord', icon: LayoutDashboard, exact: true },
+    { to: '/seller/products', label: 'Produits', icon: Package },
+    { to: '/seller/orders', label: 'Commandes', icon: ShoppingBag },
+    { to: '/seller/store/create', label: 'Créer boutique', icon: Store },
+    { to: '/seller/store', label: 'Modifier boutique', icon: Store, exact: true },
+    { to: '/seller/subscription', label: 'Abonnement', icon: Package },
+  ];
 
   return (
     <div className="flex min-h-screen bg-gray-50">

@@ -1,0 +1,252 @@
+{
+  "summary": {
+    "totalSellers": 11,
+    "totalStores": 11,
+    "totalProducts": 6,
+    "averageCommission": 10
+  },
+  "sellers": [
+    {
+      "seller_id": 2,
+      "seller_name": "Vendeur 1",
+      "seller_email": "seller1@souk.tn",
+      "seller_phone": null,
+      "seller_city": null,
+      "stores": [
+        {
+          "store_id": 1,
+          "store_name": "Boutique de Vendeur in",
+          "is_approved": 1,
+          "is_active": 1,
+          "commission_rate": "10.00",
+          "products": []
+        }
+      ]
+    },
+    {
+      "seller_id": 3,
+      "seller_name": "Vendeur 2",
+      "seller_email": "seller2@souk.tn",
+      "seller_phone": null,
+      "seller_city": null,
+      "stores": [
+        {
+          "store_id": 2,
+          "store_name": "Boutique de Vendeur 2",
+          "is_approved": 1,
+          "is_active": 1,
+          "commission_rate": "10.00",
+          "products": []
+        }
+      ]
+    },
+    {
+      "seller_id": 4,
+      "seller_name": "Vendeur 3",
+      "seller_email": "seller3@souk.tn",
+      "seller_phone": null,
+      "seller_city": null,
+      "stores": [
+        {
+          "store_id": 3,
+          "store_name": "Boutique de Vendeur 3",
+          "is_approved": 1,
+          "is_active": 1,
+          "commission_rate": "10.00",
+          "products": []
+        }
+      ]
+    },
+    {
+      "seller_id": 5,
+      "seller_name": "Vendeur 4",
+      "seller_email": "seller4@souk.tn",
+      "seller_phone": null,
+      "seller_city": null,
+      "stores": [
+        {
+          "store_id": 4,
+          "store_name": "Boutique de Vendeuri",
+          "is_approved": 1,
+          "is_active": 1,
+          "commission_rate": "10.00",
+          "products": []
+        }
+      ]
+    },
+    {
+      "seller_id": 6,
+      "seller_name": "Vendeur 5",
+      "seller_email": "seller5@souk.tn",
+      "seller_phone": null,
+      "seller_city": null,
+      "stores": [
+        {
+          "store_id": 5,
+          "store_name": "Boutique de Vendeur 5",
+          "is_approved": 1,
+          "is_active": 1,
+          "commission_rate": "10.00",
+          "products": []
+        }
+      ]
+    },
+    {
+      "seller_id": 7,
+      "seller_name": "Vendeur 6",
+      "seller_email": "seller6@souk.tn",
+      "seller_phone": null,
+      "seller_city": null,
+      "stores": [
+        {
+          "store_id": 6,
+          "store_name": "Boutique de Vendeur 6",
+          "is_approved": 1,
+          "is_active": 1,
+          "commission_rate": "10.00",
+          "products": []
+        }
+      ]
+    },
+    {
+      "seller_id": 8,
+      "seller_name": "Vendeur 7",
+      "seller_email": "seller7@souk.tn",
+      "seller_phone": null,
+      "seller_city": null,
+      "stores": [
+        {
+          "store_id": 7,
+          "store_name": "Boutique de Vendeur 7",
+          "is_approved": 1,
+          "is_active": 1,
+          "commission_rate": "10.00",
+          "products": []
+        }
+      ]
+    },
+    {
+      "seller_id": 9,
+      "seller_name": "Vendeur 8",
+      "seller_email": "seller8@souk.tn",
+      "seller_phone": null,
+      "seller_city": null,
+      "stores": [
+        {
+          "store_id": 8,
+          "store_name": "Boutique de Vendeur 8",
+          "is_approved": 1,
+          "is_active": 1,
+          "commission_rate": "10.00",
+          "products": []
+        }
+      ]
+    },
+    {
+      "seller_id": 10,
+      "seller_name": "Vendeur 9",
+      "seller_email": "seller9@souk.tn",
+      "seller_phone": null,
+      "seller_city": null,
+      "stores": [
+        {
+          "store_id": 9,
+          "store_name": "Boutique de Vendeur 9",
+          "is_approved": 1,
+          "is_active": 1,
+          "commission_rate": "10.00",
+          "products": []
+        }
+      ]
+    },
+    {
+      "seller_id": 11,
+      "seller_name": "Vendeur 10",
+      "seller_email": "seller10@souk.tn",
+      "seller_phone": null,
+      "seller_city": null,
+      "stores": [
+        {
+          "store_id": 10,
+          "store_name": "Boutique de Vendeur 10",
+          "is_approved": 1,
+          "is_active": 1,
+          "commission_rate": "10.00",
+          "products": []
+        }
+      ]
+    },
+    {
+      "seller_id": 13,
+      "seller_name": "Seller Test",
+      "seller_email": "seller@souk.tn",
+      "seller_phone": "+216 00 000 001",
+      "seller_city": null,
+      "stores": [
+        {
+          "store_id": 16,
+          "store_name": "Boutique Test",
+          "is_approved": 1,
+          "is_active": 1,
+          "commission_rate": "10.00",
+          "products": [
+            {
+              "product_id": 1,
+              "product_name": "Écouteurs Bluetooth",
+              "price": 89.99,
+              "stock": 99,
+              "category": " ├ëlectronique",
+              "is_approved": 1,
+              "is_active": 1
+            },
+            {
+              "product_id": 2,
+              "product_name": "Pull Femme Hiver",
+              "price": 59.99,
+              "stock": 98,
+              "category": " Mode & V├¬tements",
+              "is_approved": 1,
+              "is_active": 1
+            },
+            {
+              "product_id": 3,
+              "product_name": "Lampe Artisanale",
+              "price": 79.99,
+              "stock": 97,
+              "category": " Maison & D├®co",
+              "is_approved": 1,
+              "is_active": 1
+            },
+            {
+              "product_id": 4,
+              "product_name": "Crème Visage Bio",
+              "price": 54.99,
+              "stock": 99,
+              "category": " Sant├® & Beaut├®",
+              "is_approved": 1,
+              "is_active": 1
+            },
+            {
+              "product_id": 5,
+              "product_name": "Huile d'Olive Bio",
+              "price": 39.99,
+              "stock": 100,
+              "category": " Sport & Loisirs",
+              "is_approved": 1,
+              "is_active": 1
+            },
+            {
+              "product_id": 8,
+              "product_name": "Test Product",
+              "price": 20,
+              "stock": 50,
+              "category": " ├ëlectronique",
+              "is_approved": 0,
+              "is_active": 1
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

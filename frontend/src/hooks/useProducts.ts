@@ -8,8 +8,10 @@ export function useCategories() {
     queryKey: ['categories'],
     queryFn: async () => {
       const { categories } = await api.getCategories();
-      const excluded = ['Animaux', 'Alimentation', 'Livres & Papeterie'];
-      return (categories as Category[]).filter((cat) => !excluded.includes(cat.name));
+      return (categories as Category[]).map((category) => ({
+        ...category,
+        name: category.name?.toString().normalize('NFC').trim() ?? category.name,
+      }));
     },
   });
 }
@@ -37,12 +39,12 @@ export function useProducts(filters: ProductFilters = {}) {
 
       if (categoryId) params.category = categoryId;
       if (search) params.search = search;
-      if (typeof minPrice === 'number' && !Number.isNaN(minPrice)) params.minPrice = minPrice;
-      if (typeof maxPrice === 'number' && !Number.isNaN(maxPrice)) params.maxPrice = maxPrice;
+      if (minPrice !== undefined) params.minPrice = minPrice;
+      if (maxPrice !== undefined) params.maxPrice = maxPrice;
       if (sortBy) params.sort = sortBy;
 
-      const { products, count } = await api.getProducts(params);
-      return { products: products as Product[], count: typeof count === 'number' ? count : products.length };
+      const { products, page: currentPage, limit } = await api.getProducts(params);
+      return { products: products as Product[], count: products.length };
     },
   });
 }
@@ -102,10 +104,78 @@ export function useSellerStore(userId: string) {
   return useQuery({
     queryKey: ['seller-store', userId],
     queryFn: async () => {
-      const { store } = await api.getSellerStore(userId);
-      return store as Store;
+      try {
+        const { store } = await api.getSellerStore(userId);
+        return store as Store;
+      } catch (error: any) {
+        if (error?.message?.toString().includes('Store not found')) {
+          return null as Store | null;
+        }
+        throw error;
+      }
     },
     enabled: !!userId,
+  });
+}
+
+interface CreateStoreInput {
+  sellerId: string;
+  name: string;
+  description?: string;
+  logo?: File;
+  banner_url?: string;
+  phone?: string;
+  email?: string;
+  governorate?: string;
+  address?: string;
+}
+
+export function useCreateStore() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (input: CreateStoreInput) => {
+      const { sellerId, logo, ...rest } = input;
+      const formData = new FormData();
+      Object.entries(rest).forEach(([key, value]) => {
+        if (value !== undefined && value !== null) {
+          formData.append(key, String(value));
+        }
+      });
+      if (logo) {
+        formData.append('logo', logo);
+      }
+      return await api.createStore(sellerId, formData);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller-store'] });
+    },
+  });
+}
+
+interface UpdateStoreInput {
+  sellerId: string;
+  updates: Partial<{
+    name: string;
+    description: string;
+    logo_url: string;
+    banner_url: string;
+    phone: string;
+    email: string;
+    governorate: string;
+    address: string;
+  }> | FormData;
+}
+
+export function useUpdateStore() {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async ({ sellerId, updates }: UpdateStoreInput) => {
+      const { store } = await api.put(`/products/stores/seller/${sellerId}`, updates);
+      return store as Store;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['seller-store'] });
+    },
   });
 }
 
@@ -131,14 +201,14 @@ export function useProductReviews(productId: string) {
   });
 }
 
-export function useRelatedProducts(productId: string, categoryId: string) {
+export function useRelatedProducts(productId: string, categorySlug: string) {
   return useQuery({
-    queryKey: ['related-products', productId, categoryId],
+    queryKey: ['related-products', productId, categorySlug],
     queryFn: async () => {
-      const { products } = await api.getProducts({ category_id: categoryId, limit: 4 });
+      const { products } = await api.getProducts({ category: categorySlug, limit: 4 });
       return products.filter(p => p.id !== productId) as Product[];
     },
-    enabled: !!productId && !!categoryId,
+    enabled: !!productId && !!categorySlug,
   });
 }
 

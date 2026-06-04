@@ -13,7 +13,7 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('+216');
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -39,9 +39,14 @@ export default function RegisterPage() {
     }
     setLoading(true);
     try {
-      await signUp(email, password, fullName, role);
+      const response = await signUp(email, password, fullName, role);
       toast.success('Compte créé avec succès ! Vérifiez votre email.');
-      navigate('/');
+      // If server didn't return a token, redirect to verification page
+      if (!response?.token) {
+        navigate('/verify-email', { state: { email } });
+      } else {
+        navigate('/');
+      }
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erreur lors de la création du compte';
       setError(msg);

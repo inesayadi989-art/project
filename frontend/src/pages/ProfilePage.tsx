@@ -3,7 +3,6 @@ import { User, Shield, Save, Eye, EyeOff } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import { TUNISIAN_GOVERNORATES } from '../lib/types';
 import { api } from '../lib/api';
-import BackButton from '../components/UI/BackButton';
 import toast from 'react-hot-toast';
 
 type Tab = 'info' | 'security';
@@ -14,7 +13,7 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(false);
 
   const [fullName, setFullName] = useState('');
-  const [phone, setPhone] = useState('');
+  const [phone, setPhone] = useState('+216');
   const [addressLine1, setAddressLine1] = useState('');
   const [city, setCity] = useState('');
   const [governorate, setGovernorate] = useState('');
@@ -30,7 +29,7 @@ export default function ProfilePage() {
   useEffect(() => {
     if (profile) {
       setFullName(profile.full_name ?? '');
-      setPhone(profile.phone ?? '');
+      setPhone(profile.phone ?? '+216');
       setAddressLine1(profile.address_line1 ?? '');
       setCity(profile.city ?? '');
       setGovernorate(profile.governorate ?? '');
@@ -86,19 +85,17 @@ export default function ProfilePage() {
 
   return (
     <div className="max-w-2xl mx-auto px-4 py-6">
-      <BackButton />
-
       <h1 className="text-2xl font-bold text-gray-900 mb-6">Mon profil</h1>
 
       <div className="card overflow-hidden">
         <div className="flex items-center gap-4 p-6 bg-gradient-to-r from-primary-600 to-primary-700 text-white">
-          <div className="w-16 h-16 bg-white bg-opacity-20 rounded-full flex items-center justify-center text-2xl font-bold">
+          <div className="w-16 h-16 bg-white/20 rounded-full flex items-center justify-center text-2xl font-bold text-white">
             {initials}
           </div>
           <div>
-            <h2 className="text-xl font-bold">{profile?.full_name ?? 'Utilisateur'}</h2>
-            <p className="text-primary-100 text-sm">{profile?.email}</p>
-            <span className="inline-block mt-1 text-xs bg-white bg-opacity-20 px-2 py-0.5 rounded-full">
+           <h2 className="text-xl font-bold text-white">{profile?.full_name ?? 'Utilisateur'}</h2>
+       <p className="text-white/75 text-sm">{profile?.email}</p>
+       <span className="inline-block mt-1 text-xs bg-white/20 text-white px-2 py-0.5 rounded-full">
               {profile?.role === 'seller' ? 'Vendeur' : profile?.role === 'admin' ? 'Admin' : 'Acheteur'}
             </span>
           </div>

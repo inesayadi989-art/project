@@ -67,17 +67,17 @@ async function seedFullData() {
     );
     console.log('✅ Active subscription created (ID: ' + subResult.insertId + ')');
 
-    // 6. Add some products for seller
+    // 6. Add some products for seller - Realistic small business products
     const products = [
-      { name: 'Téléphone Moderne', price: 500, category: 1 },
-      { name: 'Laptop Pro', price: 1200, category: 1 },
-      { name: 'T-Shirt Designer', price: 45, category: 2 },
-      { name: 'Jeans Premium', price: 80, category: 2 },
-      { name: 'Lampe LED', price: 35, category: 3 },
+      { name: 'Écouteurs Bluetooth', price: 89.99, category: 1, image: 'https://source.unsplash.com/featured/?wireless-earbuds' },
+      { name: 'Pull Femme Hiver', price: 59.99, category: 2, image: 'https://source.unsplash.com/featured/?woman-sweater' },
+      { name: 'Lampe Artisanale', price: 79.99, category: 3, image: 'https://source.unsplash.com/featured/?ceramic-lamp' },
+      { name: 'Crème Visage Bio', price: 54.99, category: 4, image: 'https://source.unsplash.com/featured/?skincare' },
+      { name: 'Huile d\'Olive Bio', price: 39.99, category: 5, image: 'https://source.unsplash.com/featured/?olive-oil' },
     ];
 
     for (const product of products) {
-      await db.execute(
+      const [productResult] = await db.execute(
         `INSERT INTO products 
          (store_id, category_id, name, slug, description, price, stock, is_approved, is_active, created_at) 
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
@@ -86,13 +86,21 @@ async function seedFullData() {
           product.category,
           product.name,
           product.name.toLowerCase().replace(/\s+/g, '-'),
-          `Description for ${product.name}`,
+          `${product.name} - Produit authentique de petite boutique tunisienne`,
           product.price,
           100,
           true,
           true
         ]
       );
+      
+      // Insert product image
+      if (product.image) {
+        await db.execute(
+          `INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)`,
+          [productResult.insertId, product.image, 1]
+        );
+      }
     }
     console.log('✅ Products added for seller');
 

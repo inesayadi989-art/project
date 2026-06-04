@@ -34,6 +34,8 @@ CREATE TABLE IF NOT EXISTS categories (
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+DELETE FROM categories WHERE slug = 'alimentation-produits-locaux';
+
 -- Stores table
 CREATE TABLE IF NOT EXISTS stores (
   id INT AUTO_INCREMENT PRIMARY KEY,
@@ -52,6 +54,8 @@ CREATE TABLE IF NOT EXISTS stores (
   commission_rate DECIMAL(5,2) DEFAULT 10.00,
   total_sales DECIMAL(10,2) DEFAULT 0.00,
   total_revenue DECIMAL(10,2) DEFAULT 0.00,
+  wallet_balance DECIMAL(10,2) DEFAULT 0.00,
+  threshold_notified BOOLEAN DEFAULT FALSE,
   rating_avg DECIMAL(3,2) DEFAULT 0.00,
   review_count INT DEFAULT 0,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
@@ -119,17 +123,18 @@ CREATE TABLE IF NOT EXISTS orders (
   customer_id INT NOT NULL,
   store_id INT NOT NULL,
   total DECIMAL(10,2) NOT NULL,
-  status ENUM('pending', 'confirmed', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending',
+  status ENUM('pending', 'pending_vendor', 'pending_vendor_confirmation', 'confirmed', 'paid_confirmed', 'completed', 'rejected_by_vendor', 'shipped', 'delivered', 'cancelled') DEFAULT 'pending',
   payment_status ENUM('unpaid', 'pending', 'paid', 'failed') DEFAULT 'unpaid',
   payment_method VARCHAR(50),
   payment_id INT,
+  admin_commission DECIMAL(10,2) DEFAULT 0.00,
+  vendor_amount DECIMAL(10,2) DEFAULT 0.00,
   paid_at TIMESTAMP NULL,
   shipping_address JSON,
   created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
   FOREIGN KEY (customer_id) REFERENCES profiles(id) ON DELETE CASCADE,
-  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE,
-  FOREIGN KEY (payment_id) REFERENCES payments(id) ON DELETE SET NULL
+  FOREIGN KEY (store_id) REFERENCES stores(id) ON DELETE CASCADE
 );
 
 -- Order items table
@@ -200,39 +205,60 @@ CREATE TABLE IF NOT EXISTS subscriptions (
   UNIQUE KEY unique_user_subscription (user_id)
 );
 
+-- Seller Subscriptions table (SaaS subscription workflow)
+CREATE TABLE IF NOT EXISTS seller_subscriptions (
+  id INT AUTO_INCREMENT PRIMARY KEY,
+  seller_id INT NOT NULL,
+  plan_name VARCHAR(100) DEFAULT 'Souk Business',
+  plan_price DECIMAL(10,2) DEFAULT 30.00,
+  amount DECIMAL(10,2) DEFAULT 30.00,
+  comment TEXT NULL,
+  status ENUM('pending_admin', 'active', 'rejected', 'expired') DEFAULT 'pending_admin',
+  payment_status ENUM('unpaid', 'paid') DEFAULT 'unpaid',
+  start_date TIMESTAMP NULL,
+  end_date TIMESTAMP NULL,
+  rejected_reason TEXT,
+  approved_by INT,
+  approved_at TIMESTAMP NULL,
+  payment_method VARCHAR(50),
+  payment_reference VARCHAR(255),
+  paid_at TIMESTAMP NULL,
+  subscription_revenue_added BOOLEAN DEFAULT FALSE,
+  created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+  updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+  FOREIGN KEY (seller_id) REFERENCES profiles(id) ON DELETE CASCADE,
+  FOREIGN KEY (approved_by) REFERENCES profiles(id) ON DELETE SET NULL
+);
+
 -- Insert default subscription plans
 INSERT IGNORE INTO subscription_plans (name, slug, description, amount, interval_type, interval_count) VALUES
 ('Abonnement Unique', 'single-plan', 'Abonnement unique pour vendeurs - 30 TND/mois', 30.00, 'month', 1);
 
 -- Insert default categories
 INSERT IGNORE INTO categories (name, slug, description, display_order) VALUES
-('Électronique', 'electronique', 'Produits électroniques et gadgets', 1),
-('Mode & Vêtements', 'mode-vetements', 'Vêtements et accessoires de mode', 2),
-('Maison & Déco', 'maison-deco', 'Articles pour la maison et décoration', 3),
-('Alimentation', 'alimentation', 'Produits alimentaires et boissons', 4),
-('Artisanat & Art', 'artisanat-art', 'Produits artisanaux et œuvres d\'art', 5),
-('Sport & Loisirs', 'sport-loisirs', 'Équipements sportifs et loisirs', 6),
-('Livres & Papeterie', 'livres-papeterie', 'Livres et fournitures scolaires', 7),
-('Santé & Beauté', 'sante-beaute', 'Produits de santé et beauté', 8),
-('Jardinage', 'jardinage', 'Outils et plantes de jardinage', 9),
-('Animaux', 'animaux', 'Produits pour animaux de compagnie', 10);
+(' Électronique', 'electronique', 'Produits électroniques et gadgets', 1),
+(' Mode & Vêtements', 'mode-vetements', 'Vêtements et accessoires de mode', 2),
+(' Maison & Déco', 'maison-deco', 'Articles pour la maison et décoration', 3),
+(' Santé & Beauté', 'sante-beaute', 'Produits bien-être, beauté et santé', 4),
+(' Sport & Loisirs', 'sport-loisirs', 'Équipements de sport et activités de loisir', 5),
+(' Artisanat & Art', 'artisanat-art', 'Produits artisanaux et œuvres d\'art', 6);
 
 -- Create admin user (password: admin123)
 INSERT IGNORE INTO profiles (email, full_name, role, password_hash) VALUES
-('admin@souk.tn', 'Admin Souk', 'admin', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeXt0y5kLx8yQIiCe');
+('admin@souk.tn', 'Admin Souk', 'admin', '$2a$12$HShNJOk4p3qgTxG1cJ05SewCuCz6iiC1Kld8nBaLRbF/WXoC9pz1u');
 
--- Create seller users (password: Seller123)
+-- Create seller users (password: seller123)
 INSERT IGNORE INTO profiles (email, full_name, role, password_hash) VALUES
-('seller1@souk.tn', 'Vendeur 1', 'seller', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeXt0y5kLx8yQIiCe'),
-('seller2@souk.tn', 'Vendeur 2', 'seller', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeXt0y5kLx8yQIiCe'),
-('seller3@souk.tn', 'Vendeur 3', 'seller', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeXt0y5kLx8yQIiCe'),
-('seller4@souk.tn', 'Vendeur 4', 'seller', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeXt0y5kLx8yQIiCe'),
-('seller5@souk.tn', 'Vendeur 5', 'seller', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeXt0y5kLx8yQIiCe'),
-('seller6@souk.tn', 'Vendeur 6', 'seller', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeXt0y5kLx8yQIiCe'),
-('seller7@souk.tn', 'Vendeur 7', 'seller', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeXt0y5kLx8yQIiCe'),
-('seller8@souk.tn', 'Vendeur 8', 'seller', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeXt0y5kLx8yQIiCe'),
-('seller9@souk.tn', 'Vendeur 9', 'seller', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeXt0y5kLx8yQIiCe'),
-('seller10@souk.tn', 'Vendeur 10', 'seller', '$2a$12$LQv3c1yqBWVHxkd0LHAkCOYz6TtxMQJqhN8/LeXt0y5kLx8yQIiCe');
+('seller1@souk.tn', 'Vendeur 1', 'seller', '$2a$12$rPfQVfGxu0v3UYdi17KAouYywuY2zgrdIe7TQczTkGk/qyBI9K89O'),
+('seller2@souk.tn', 'Vendeur 2', 'seller', '$2a$12$rPfQVfGxu0v3UYdi17KAouYywuY2zgrdIe7TQczTkGk/qyBI9K89O'),
+('seller3@souk.tn', 'Vendeur 3', 'seller', '$2a$12$rPfQVfGxu0v3UYdi17KAouYywuY2zgrdIe7TQczTkGk/qyBI9K89O'),
+('seller4@souk.tn', 'Vendeur 4', 'seller', '$2a$12$rPfQVfGxu0v3UYdi17KAouYywuY2zgrdIe7TQczTkGk/qyBI9K89O'),
+('seller5@souk.tn', 'Vendeur 5', 'seller', '$2a$12$rPfQVfGxu0v3UYdi17KAouYywuY2zgrdIe7TQczTkGk/qyBI9K89O'),
+('seller6@souk.tn', 'Vendeur 6', 'seller', '$2a$12$rPfQVfGxu0v3UYdi17KAouYywuY2zgrdIe7TQczTkGk/qyBI9K89O'),
+('seller7@souk.tn', 'Vendeur 7', 'seller', '$2a$12$rPfQVfGxu0v3UYdi17KAouYywuY2zgrdIe7TQczTkGk/qyBI9K89O'),
+('seller8@souk.tn', 'Vendeur 8', 'seller', '$2a$12$rPfQVfGxu0v3UYdi17KAouYywuY2zgrdIe7TQczTkGk/qyBI9K89O'),
+('seller9@souk.tn', 'Vendeur 9', 'seller', '$2a$12$rPfQVfGxu0v3UYdi17KAouYywuY2zgrdIe7TQczTkGk/qyBI9K89O'),
+('seller10@souk.tn', 'Vendeur 10', 'seller', '$2a$12$rPfQVfGxu0v3UYdi17KAouYywuY2zgrdIe7TQczTkGk/qyBI9K89O');
 
 -- Create stores for sellers
 INSERT IGNORE INTO stores (owner_id, name, slug, is_approved, commission_rate)

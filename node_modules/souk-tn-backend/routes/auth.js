@@ -4,6 +4,16 @@ const jwt = require('jsonwebtoken');
 const { body, validationResult } = require('express-validator');
 
 const router = express.Router();
+const emailService = require('../utils/emailService');
+
+const TEST_SELLER_EMAILS = [
+  'seller1@souk.tn',
+  'seller2@souk.tn',
+  'seller3@souk.tn',
+  'seller4@souk.tn',
+  'seller6@souk.tn',
+  'seller8@souk.tn',
+];
 
 // Register
 router.post('/register', [
@@ -35,12 +45,24 @@ router.post('/register', [
     const hashedPassword = await bcrypt.hash(password, 12);
 
     // Insert user
+    // Ensure profiles has email_verified column
+    const [colsCheck] = await db.execute("SHOW COLUMNS FROM profiles LIKE 'email_verified'");
+    if (colsCheck.length === 0) {
+      await db.execute('ALTER TABLE profiles ADD COLUMN email_verified BOOLEAN DEFAULT FALSE');
+    }
+
     const [result] = await db.execute(
       'INSERT INTO profiles (email, full_name, role, password_hash, created_at, updated_at) VALUES (?, ?, ?, ?, NOW(), NOW())',
       [email, fullName, role, hashedPassword]
     );
 
     const userId = result.insertId;
+    const isTestSeller = TEST_SELLER_EMAILS.includes(email.toLowerCase());
+    const isAdminAccount = role === 'admin';
+
+    if (isTestSeller || isAdminAccount) {
+      await db.execute('UPDATE profiles SET email_verified = TRUE WHERE id = ?', [userId]);
+    }
 
     // Create store for sellers
     if (role === 'seller') {
@@ -51,17 +73,29 @@ router.post('/register', [
       );
     }
 
-    // Generate JWT
-    const token = jwt.sign(
-      { userId, email, role },
-      process.env.JWT_SECRET,
-      { expiresIn: '7d' }
-    );
+    if (!isTestSeller) {
+      // Create email_codes table if missing and send verification code
+      await db.execute(`CREATE TABLE IF NOT EXISTS email_codes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        code VARCHAR(10) NOT NULL,
+        purpose ENUM('verify','reset') NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      await db.execute(
+        'INSERT INTO email_codes (email, code, purpose, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE))',
+        [email, code, 'verify']
+      );
+
+      await emailService.sendVerificationEmail(email, code);
+    }
 
     res.status(201).json({
-      message: 'User created successfully',
-      token,
-      user: { id: userId, email, fullName, role }
+      message: isTestSeller ? 'User created and auto-verified for test seller' : 'User created, verification code sent',
+      user: { id: userId, email, fullName, role, email_verified: isTestSeller }
     });
 
   } catch (error) {
@@ -86,9 +120,9 @@ router.post('/login', [
     const { email, password } = req.body;
     const db = req.db;
 
-    // Get user
+    // Get user (include email_verified)
     const [users] = await db.execute(
-      'SELECT id, email, full_name, role, password_hash, is_banned FROM profiles WHERE email = ?',
+      'SELECT id, email, full_name, role, password_hash, is_banned, email_verified FROM profiles WHERE email = ?',
       [email]
     );
 
@@ -106,6 +140,28 @@ router.post('/login', [
     const isValidPassword = await bcrypt.compare(password, user.password_hash);
     if (!isValidPassword) {
       return res.status(401).json({ error: 'Invalid credentials' });
+    }
+
+    // If email not verified and not a known test seller or admin, send a new code and ask to verify
+    if (!user.email_verified && !TEST_SELLER_EMAILS.includes(email.toLowerCase()) && user.role !== 'admin') {
+      // ensure email_codes exists
+      await db.execute(`CREATE TABLE IF NOT EXISTS email_codes (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        email VARCHAR(255) NOT NULL,
+        code VARCHAR(10) NOT NULL,
+        purpose ENUM('verify','reset') NOT NULL,
+        expires_at DATETIME NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
+      const code = Math.floor(100000 + Math.random() * 900000).toString();
+      await db.execute(
+        'INSERT INTO email_codes (email, code, purpose, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE))',
+        [email, code, 'verify']
+      );
+      await emailService.sendVerificationEmail(email, code);
+
+      return res.status(403).json({ error: 'Email not verified. Code resent.' });
     }
 
     // Generate JWT
@@ -238,3 +294,112 @@ router.put('/password', authenticateToken, [
 });
 
 module.exports = router;
+
+// --- Email code endpoints: send code, verify code, reset password via code ---
+
+// Send a verification or reset code by email
+router.post('/send-email-code', async (req, res) => {
+  try {
+    const { email, purpose } = req.body; // purpose: 'verify' | 'reset'
+    if (!email || !purpose || !['verify', 'reset'].includes(purpose)) {
+      return res.status(400).json({ error: 'Invalid parameters' });
+    }
+
+    const db = req.db;
+
+    // Ensure email_codes table exists
+    await db.execute(`CREATE TABLE IF NOT EXISTS email_codes (
+      id INT AUTO_INCREMENT PRIMARY KEY,
+      email VARCHAR(255) NOT NULL,
+      code VARCHAR(10) NOT NULL,
+      purpose ENUM('verify','reset') NOT NULL,
+      expires_at DATETIME NOT NULL,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4`);
+
+    const code = Math.floor(100000 + Math.random() * 900000).toString();
+    await db.execute(
+      'INSERT INTO email_codes (email, code, purpose, expires_at) VALUES (?, ?, ?, DATE_ADD(NOW(), INTERVAL 15 MINUTE))',
+      [email, code, purpose]
+    );
+
+    if (purpose === 'verify') {
+      await emailService.sendVerificationEmail(email, code);
+    } else {
+      await emailService.sendResetPasswordEmail(email, code);
+    }
+
+    res.json({ message: 'Code envoyé' });
+  } catch (error) {
+    console.error('send-email-code error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Verify email code and mark profile as verified
+router.post('/verify-email', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: 'Missing parameters' });
+    const db = req.db;
+
+    const [rows] = await db.execute(
+      "SELECT * FROM email_codes WHERE email = ? AND purpose = 'verify' AND code = ? AND expires_at > NOW() ORDER BY id DESC LIMIT 1",
+      [email, code]
+    );
+    if (rows.length === 0) return res.status(400).json({ error: 'Code invalide ou expiré' });
+
+    // Ensure profiles table has email_verified column
+    const [cols] = await db.execute("SHOW COLUMNS FROM profiles LIKE 'email_verified'");
+    if (cols.length === 0) {
+      await db.execute('ALTER TABLE profiles ADD COLUMN email_verified BOOLEAN DEFAULT FALSE');
+    }
+
+    await db.execute('UPDATE profiles SET email_verified = TRUE WHERE email = ?', [email]);
+    res.json({ message: 'Email vérifié' });
+  } catch (error) {
+    console.error('verify-email error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Verify reset code (step 1)
+router.post('/verify-reset-code', async (req, res) => {
+  try {
+    const { email, code } = req.body;
+    if (!email || !code) return res.status(400).json({ error: 'Missing parameters' });
+    const db = req.db;
+
+    const [rows] = await db.execute(
+      "SELECT * FROM email_codes WHERE email = ? AND purpose = 'reset' AND code = ? AND expires_at > NOW() ORDER BY id DESC LIMIT 1",
+      [email, code]
+    );
+    if (rows.length === 0) return res.status(400).json({ error: 'Code invalide ou expiré' });
+    res.json({ message: 'Code valide' });
+  } catch (error) {
+    console.error('verify-reset-code error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Complete password reset (step 2)
+router.put('/reset-password', async (req, res) => {
+  try {
+    const { email, code, newPassword } = req.body;
+    if (!email || !code || !newPassword) return res.status(400).json({ error: 'Missing parameters' });
+    const db = req.db;
+
+    const [rows] = await db.execute(
+      "SELECT * FROM email_codes WHERE email = ? AND purpose = 'reset' AND code = ? AND expires_at > NOW() ORDER BY id DESC LIMIT 1",
+      [email, code]
+    );
+    if (rows.length === 0) return res.status(400).json({ error: 'Code invalide ou expiré' });
+
+    const hashed = await bcrypt.hash(newPassword, 12);
+    await db.execute('UPDATE profiles SET password_hash = ?, updated_at = NOW() WHERE email = ?', [hashed, email]);
+    res.json({ message: 'Mot de passe mis à jour' });
+  } catch (error) {
+    console.error('reset-password error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});

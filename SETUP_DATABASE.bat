@@ -61,18 +61,6 @@ if !ERRORLEVEL! neq 0 (
 
 echo.[OK] Schema imported
 
-REM Create user memory table
-echo.[*] Creating user memory table...
-mysql -u root souk_tn < "C:\xampp\htdocs\project\database\create_user_memory.sql"
-
-if !ERRORLEVEL! neq 0 (
-    echo [ERROR] Failed to create user memory table
-    pause
-    exit /b 1
-)
-
-echo.[OK] User memory table created
-
 REM Create test user
 echo.[*] Creating test admin user...
 mysql -u root souk_tn -e ^

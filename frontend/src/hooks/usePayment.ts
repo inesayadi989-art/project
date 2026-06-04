@@ -4,8 +4,8 @@ import toast from 'react-hot-toast';
 
 export function useCreatePayment() {
   return useMutation({
-    mutationFn: async (orderId: string) => {
-      const response = await api.createPaymentSession(orderId);
+    mutationFn: async (paymentPayload: any) => {
+      const response = await api.createPaymentSession(paymentPayload);
       return response;
     },
     onError: (error: any) => {

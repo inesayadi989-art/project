@@ -5,7 +5,6 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useVerifyPayment } from '../hooks/usePayment';
 import { useVerifySubscription } from '../hooks/useSubscriptions';
 import { useAuthStore } from '../store/authStore';
-import BackButton from '../components/UI/BackButton';
 import toast from 'react-hot-toast';
 
 export default function PaymentSuccessPage() {
@@ -46,7 +45,7 @@ export default function PaymentSuccessPage() {
       setSubscriptionStatus(status ?? null);
       setPlanName(subscription?.plan_name ?? null);
       setNextPaymentDate(subscription?.next_payment_date ?? null);
-      setExpiryDate(subscription?.current_period_end ?? null);
+      setExpiryDate(subscription?.end_date ?? null);
 
       if (status === 'active') {
         setStatusMessage('✅ Subscription activated successfully');
@@ -131,7 +130,7 @@ export default function PaymentSuccessPage() {
           <div className="space-y-3">
             <button
               onClick={checkSubscriptionStatus}
-              className="w-full rounded-2xl bg-orange-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-900"
+              className="w-full rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
             >
               Refresh Status
             </button>
@@ -154,40 +153,62 @@ export default function PaymentSuccessPage() {
       ? 'text-yellow-500'
       : 'text-red-500';
 
+  // Calculate delivery date for orders (2 days from now)
+  const deliveryDate = new Date();
+  deliveryDate.setDate(deliveryDate.getDate() + 2);
+  const formattedDeliveryDate = deliveryDate.toLocaleDateString('fr-TN', {
+    weekday: 'long',
+    year: 'numeric',
+    month: 'long',
+    day: 'numeric'
+  });
+
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
       <div className="rounded-3xl border border-gray-200 bg-white p-8 shadow-xl max-w-lg w-full text-center">
-        <BackButton to={isSubscriptionType ? '/seller' : '/'} className="mb-4" />
-
         <CheckCircle size={64} className="mx-auto mb-4 text-green-500" />
         <h1 className="text-3xl font-bold text-gray-900 mb-3">
-          {isSubscriptionType ? '🎉 Your store is now active!' : 'Payment Successful'}
+          {isSubscriptionType ? '🎉 Votre magasin est maintenant actif!' : '✅ Paiement effectué!'}
         </h1>
         <p className="text-gray-600 mb-6">
           {isSubscriptionType
-            ? 'Your subscription is active and your seller features are unlocked.'
-            : 'Your payment was successful and your order is confirmed.'}
+            ? 'Votre abonnement est actif et vos fonctionnalités vendeur sont déverrouillées.'
+            : 'Votre paiement a été accepté et votre commande est confirmée.'}
         </p>
 
-        <div className="space-y-4 rounded-3xl bg-slate-50 p-5 text-left">
-          <p className={`font-semibold ${badgeColor}`}>Status: {subscriptionStatus?.toUpperCase() ?? 'UNKNOWN'}</p>
-          {planName && <p>📦 Plan: {planName}</p>}
-          {expiryDate && <p>📅 Expiry: {expiryDate}</p>}
-          {nextPaymentDate && <p>🔁 Next renewal: {nextPaymentDate}</p>}
-        </div>
+        {isSubscriptionType ? (
+          <div className="space-y-4 rounded-3xl bg-slate-50 p-5 text-left">
+            <p className={`font-semibold ${badgeColor}`}>Statut: {subscriptionStatus?.toUpperCase() ?? 'UNKNOWN'}</p>
+            {planName && <p>📦 Plan: {planName}</p>}
+            {expiryDate && <p>📅 Expiration: {expiryDate}</p>}
+            {nextPaymentDate && <p>🔁 Prochain renouvellement: {nextPaymentDate}</p>}
+          </div>
+        ) : (
+          <div className="bg-green-50 border border-green-200 rounded-lg px-4 py-3 mb-6">
+            <p className="text-sm text-green-800 font-semibold mb-2">
+              📅 Livraison prévue
+            </p>
+            <p className="text-sm text-green-700">
+              {formattedDeliveryDate} (dans 2 jours)
+            </p>
+            <p className="text-xs text-green-600 mt-2">
+              Vous recevrez un SMS de suivi lors de la livraison.
+            </p>
+          </div>
+        )}
 
         <div className="mt-6 grid gap-3 sm:grid-cols-2">
           <Link
-            to="/seller"
-            className="inline-flex items-center justify-center rounded-2xl bg-orange-800 px-4 py-3 text-sm font-semibold text-white transition hover:bg-orange-900"
+            to={isSubscriptionType ? '/seller' : '/orders'}
+            className="inline-flex items-center justify-center rounded-2xl bg-blue-600 px-4 py-3 text-sm font-semibold text-white transition hover:bg-blue-700"
           >
-            Go to Dashboard
+            {isSubscriptionType ? 'Aller au Tableau de bord' : 'Voir mes commandes'}
           </Link>
           <button
-            onClick={checkSubscriptionStatus}
+            onClick={isSubscriptionType ? checkSubscriptionStatus : () => navigate('/')}
             className="inline-flex items-center justify-center rounded-2xl border border-gray-300 bg-white px-4 py-3 text-sm font-semibold text-gray-700 transition hover:bg-gray-50"
           >
-            Refresh Status
+            {isSubscriptionType ? 'Rafraîchir le statut' : 'Accueil'}
           </button>
         </div>
       </div>

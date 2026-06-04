@@ -27,6 +27,15 @@ const upload = multer({
   },
 });
 
+const buildImageUrl = (req, imagePath) => {
+  if (!imagePath) return imagePath;
+  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
+    return imagePath;
+  }
+  const baseUrl = `${req.protocol}://${req.get('host')}`;
+  return `${baseUrl}${imagePath}`;
+};
+
 const arabicDigitsToLatin = (text) => {
   return text.replace(/[٠-٩]/g, (digit) => '٠١٢٣٤٥٦٧٨٩'.indexOf(digit).toString());
 };
@@ -372,7 +381,7 @@ router.post('/smart-assistant', async (req, res) => {
       SELECT p.id, p.store_id, p.category_id, p.name, p.slug, p.description, p.price, p.stock, p.is_approved, p.is_active, p.rating_avg, p.review_count, p.view_count, p.created_at,
              s.name as store_name, s.slug as store_slug,
              c.name as category_name, c.slug as category_slug,
-             GROUP_CONCAT(pi.image_url) as images
+             GROUP_CONCAT(pi.image_url SEPARATOR '||') as images
       FROM products p
       LEFT JOIN stores s ON p.store_id = s.id
       LEFT JOIN categories c ON p.category_id = c.id
@@ -420,7 +429,7 @@ router.post('/smart-assistant', async (req, res) => {
     
     // Process images
     allProducts.forEach(product => {
-      product.images = product.images ? product.images.split(',').filter(Boolean) : [];
+      product.images = product.images ? product.images.split('||').filter(Boolean) : [];
     });
 
     // Rank products using intelligent algorithm
@@ -546,7 +555,7 @@ router.get('/assistant', async (req, res) => {
       SELECT p.id, p.store_id, p.category_id, p.name, p.slug, p.description, p.price, p.stock, p.is_approved, p.is_active, p.rating_avg, p.review_count, p.view_count, p.created_at,
              s.name as store_name, s.slug as store_slug,
              c.name as category_name, c.slug as category_slug,
-             GROUP_CONCAT(pi.image_url) as images
+             GROUP_CONCAT(pi.image_url SEPARATOR '||') as images
       FROM products p
       LEFT JOIN stores s ON p.store_id = s.id
       LEFT JOIN categories c ON p.category_id = c.id
@@ -581,7 +590,7 @@ router.get('/assistant', async (req, res) => {
     const [products] = await db.execute(sql, params);
     products.forEach(product => {
       if (product.images) {
-        product.images = product.images.split(',');
+        product.images = product.images.split('||');
       } else {
         product.images = [];
       }
@@ -607,13 +616,13 @@ router.get('/assistant', async (req, res) => {
 router.get('/', async (req, res) => {
   try {
     const db = req.db;
-    const { category, search, store, minPrice, maxPrice, page = 1, limit = 20, sort = 'created_at' } = req.query;
+    const { category, search, store, minPrice, maxPrice, page = 1, limit = 20, sort = 'newest' } = req.query;
 
     let query = `
       SELECT p.id, p.store_id, p.category_id, p.name, p.slug, p.description, p.price, p.stock, p.is_approved, p.is_active, p.rating_avg, p.review_count, p.view_count, p.created_at,
              s.name as store_name, s.slug as store_slug,
              c.name as category_name, c.slug as category_slug,
-             GROUP_CONCAT(pi.image_url) as images
+             GROUP_CONCAT(pi.image_url SEPARATOR '||') as images
       FROM products p
       LEFT JOIN stores s ON p.store_id = s.id
       LEFT JOIN categories c ON p.category_id = c.id
@@ -625,7 +634,11 @@ router.get('/', async (req, res) => {
     const conditions = [];
 
     if (category) {
-      conditions.push('c.slug = ?');
+      if (/^\d+$/.test(category)) {
+        conditions.push('c.id = ?');
+      } else {
+        conditions.push('c.slug = ?');
+      }
       params.push(category);
     }
 
@@ -639,57 +652,39 @@ router.get('/', async (req, res) => {
       params.push(`%${search}%`, `%${search}%`);
     }
 
-    const minPriceValue = minPrice !== undefined ? parseFloat(minPrice) : NaN;
-    if (!Number.isNaN(minPriceValue)) {
-      conditions.push('p.price >= ?');
-      params.push(minPriceValue);
+    if (minPrice !== undefined && minPrice !== null && minPrice !== '') {
+      const minValue = Number(minPrice);
+      if (!Number.isNaN(minValue)) {
+        conditions.push('p.price >= ?');
+        params.push(minValue);
+      }
     }
 
-    const maxPriceValue = maxPrice !== undefined ? parseFloat(maxPrice) : NaN;
-    if (!Number.isNaN(maxPriceValue)) {
-      conditions.push('p.price <= ?');
-      params.push(maxPriceValue);
+    if (maxPrice !== undefined && maxPrice !== null && maxPrice !== '') {
+      const maxValue = Number(maxPrice);
+      if (!Number.isNaN(maxValue)) {
+        conditions.push('p.price <= ?');
+        params.push(maxValue);
+      }
     }
 
     if (conditions.length > 0) {
       query += ' AND ' + conditions.join(' AND ');
     }
 
-    const countQuery = `
-      SELECT COUNT(DISTINCT p.id) as total
-      FROM products p
-      LEFT JOIN stores s ON p.store_id = s.id
-      LEFT JOIN categories c ON p.category_id = c.id
-      WHERE p.is_approved = true AND p.is_active = true
-      ${conditions.length > 0 ? 'AND ' + conditions.join(' AND ') : ''}
-    `;
-
-    const countParams = [...params];
-
     query += ' GROUP BY p.id';
 
     // Sorting
-    let sortColumn = 'created_at';
-    let sortDirection = 'DESC';
+    const sortMap = {
+      newest: { column: 'p.created_at', direction: 'DESC' },
+      price_asc: { column: 'p.price', direction: 'ASC' },
+      price_desc: { column: 'p.price', direction: 'DESC' },
+      popular: { column: 'p.view_count', direction: 'DESC' },
+      rating: { column: 'p.rating_avg', direction: 'DESC' },
+    };
 
-    if (sort === 'price_asc') {
-      sortColumn = 'price';
-      sortDirection = 'ASC';
-    } else if (sort === 'price_desc') {
-      sortColumn = 'price';
-      sortDirection = 'DESC';
-    } else if (sort === 'rating') {
-      sortColumn = 'rating_avg';
-      sortDirection = 'DESC';
-    } else if (sort === 'popular') {
-      sortColumn = 'view_count';
-      sortDirection = 'DESC';
-    } else if (['created_at', 'price', 'name', 'rating_avg'].includes(sort)) {
-      sortColumn = sort;
-      sortDirection = 'DESC';
-    }
-
-    query += ` ORDER BY p.${sortColumn} ${sortDirection}`;
+    const sortConfig = sortMap[sort] || sortMap.newest;
+    query += ` ORDER BY ${sortConfig.column} ${sortConfig.direction}`;
 
     // Pagination
     const offset = (page - 1) * limit;
@@ -697,13 +692,11 @@ router.get('/', async (req, res) => {
     params.push(parseInt(limit), offset);
 
     const [products] = await db.execute(query, params);
-    const [countRows] = await db.execute(countQuery, countParams);
-    const totalCount = countRows?.[0]?.total ?? 0;
 
     // Process images and normalize response shape for frontend
     products.forEach(product => {
-      const imageUrls = product.images ? product.images.split(',').filter(Boolean) : [];
-      product.product_images = imageUrls.map((url, index) => ({ url, is_primary: index === 0 }));
+      const imageUrls = product.images ? product.images.split('||').filter(Boolean) : [];
+      product.product_images = imageUrls.map((url, index) => ({ url: buildImageUrl(req, url), is_primary: index === 0 }));
       product.stock_qty = product.stock ?? 0;
       product.compare_price = product.compare_price ?? null;
       product.tags = product.tags ? (Array.isArray(product.tags) ? product.tags : product.tags.split(',').map((tag) => tag.trim()).filter(Boolean)) : [];
@@ -713,7 +706,7 @@ router.get('/', async (req, res) => {
       delete product.images;
     });
 
-    res.json({ products, page: parseInt(page), limit: parseInt(limit), count: totalCount });
+    res.json({ products, page: parseInt(page), limit: parseInt(limit) });
 
   } catch (error) {
     console.error('Get products error:', error);
@@ -748,7 +741,7 @@ router.get('/:id', async (req, res) => {
       [id]
     );
     const imageUrls = images.map(img => img.image_url);
-    product.product_images = imageUrls.map((url, index) => ({ url, is_primary: index === 0 }));
+    product.product_images = imageUrls.map((url, index) => ({ url: buildImageUrl(req, url), is_primary: index === 0 }));
     product.stock_qty = product.stock ?? 0;
     product.compare_price = product.compare_price ?? null;
     product.tags = product.tags ? (Array.isArray(product.tags) ? product.tags : product.tags.split(',').map((tag) => tag.trim()).filter(Boolean)) : [];
@@ -794,6 +787,121 @@ router.get('/stores/seller/:sellerId', async (req, res) => {
   }
 });
 
+// Create seller store if it does not exist yet
+router.post('/stores/seller/:sellerId', authenticateToken, upload.single('logo'), async (req, res) => {
+  try {
+    if (req.user.role !== 'seller') {
+      return res.status(403).json({ error: 'Only sellers can create a store' });
+    }
+
+    const sellerIdNum = parseInt(req.params.sellerId, 10);
+    if (req.user.userId !== sellerIdNum) {
+      return res.status(403).json({ error: 'You can only create your own store' });
+    }
+
+    const db = req.db;
+    const [existingStores] = await db.execute(
+      `SELECT * FROM stores WHERE owner_id = ? AND is_active = true LIMIT 1`,
+      [sellerIdNum]
+    );
+
+    if (existingStores.length > 0) {
+      return res.status(400).json({ error: 'Store already exists' });
+    }
+
+    const name = (req.body.name || `Boutique du vendeur`).trim();
+    const description = req.body.description?.trim() || null;
+    const banner_url = req.body.banner_url?.trim() || null;
+    const phone = req.body.phone?.trim() || null;
+    const email = req.body.email?.trim() || null;
+    const governorate = req.body.governorate?.trim() || null;
+    const address = req.body.address?.trim() || null;
+    const logo_url = req.file ? `/uploads/${req.file.filename}` : null;
+
+    const slugBase = name.toLowerCase()
+      .replace(/[^\w\s-]/g, '')
+      .replace(/\s+/g, '-')
+      .replace(/-+/g, '-')
+      .replace(/^-+|-+$/g, '');
+    const slug = slugBase || `boutique-${sellerIdNum}-${Date.now()}`;
+
+    await db.execute(
+      `INSERT INTO stores (owner_id, name, slug, description, logo_url, banner_url, phone, email, governorate, address, is_approved, is_active, commission_rate, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NOW(), NOW())`,
+      [sellerIdNum, name, slug, description, logo_url, banner_url, phone, email, governorate, address, false, true, 10]
+    );
+
+    const [newStores] = await db.execute(
+      `SELECT * FROM stores WHERE owner_id = ? AND is_active = true LIMIT 1`,
+      [sellerIdNum]
+    );
+
+    res.status(201).json({ store: newStores[0] });
+  } catch (error) {
+    console.error('Create seller store error:', error);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
+// Update seller store details
+router.put('/stores/seller/:sellerId', authenticateToken, upload.single('logo'), async (req, res) => {
+  try {
+    if (req.user.role !== 'seller') {
+      console.error('❌ Not a seller role:', req.user.role);
+      return res.status(403).json({ error: 'Only sellers can update their store' });
+    }
+
+    const { sellerId } = req.params;
+    const sellerIdNum = parseInt(sellerId, 10);
+    console.log('🔍 Update store request:', { sellerId, userId: req.user.userId, role: req.user.role });
+    
+    if (req.user.userId !== sellerIdNum) {
+      console.error('❌ User ID mismatch:', { userId: req.user.userId, sellerId: sellerIdNum });
+      return res.status(403).json({ error: 'You can only update your own store' });
+    }
+
+    const db = req.db;
+    const [stores] = await db.execute(
+      `SELECT * FROM stores WHERE owner_id = ? AND is_active = true LIMIT 1`,
+      [sellerIdNum]
+    );
+
+    if (stores.length === 0) {
+      console.error('❌ Store not found for seller:', sellerId);
+      return res.status(404).json({ error: 'Store not found' });
+    }
+
+    const store = stores[0];
+    const {
+      name = store.name,
+      description = store.description,
+      banner_url = store.banner_url,
+      phone = store.phone,
+      email = store.email,
+      governorate = store.governorate,
+      address = store.address,
+    } = req.body;
+
+    const logo_url = req.file ? `/uploads/${req.file.filename}` : store.logo_url;
+
+    await db.execute(
+      `UPDATE stores SET name = ?, description = ?, logo_url = ?, banner_url = ?, phone = ?, email = ?, governorate = ?, address = ?, updated_at = NOW() WHERE owner_id = ? AND is_active = true`,
+      [name, description, logo_url, banner_url, phone, email, governorate, address, sellerIdNum]
+    );
+
+    const [updatedStores] = await db.execute(
+      `SELECT * FROM stores WHERE owner_id = ? AND is_active = true LIMIT 1`,
+      [sellerIdNum]
+    );
+
+    console.log('✅ Store updated successfully:', { sellerId: sellerIdNum, storeName: updatedStores[0]?.name });
+    res.json({ store: updatedStores[0] });
+  } catch (error) {
+    console.error('❌ Update seller store error:', error.message, error.stack);
+    res.status(500).json({ error: 'Internal server error' });
+  }
+});
+
 // Get seller-managed products by store slug
 router.get('/stores/manage/:storeSlug', authenticateToken, requireSubscription, async (req, res) => {
   try {
@@ -817,7 +925,7 @@ router.get('/stores/manage/:storeSlug', authenticateToken, requireSubscription, 
 
     const [products] = await db.execute(
       `SELECT p.id, p.store_id, p.category_id, p.name, p.slug, p.description, p.price, p.stock, p.is_approved, p.is_active, p.rating_avg, p.review_count, p.view_count, p.created_at,
-              GROUP_CONCAT(pi.image_url) as images
+              GROUP_CONCAT(pi.image_url SEPARATOR '||') as images
        FROM products p
        LEFT JOIN product_images pi ON p.id = pi.product_id
        WHERE p.store_id = ?
@@ -827,8 +935,8 @@ router.get('/stores/manage/:storeSlug', authenticateToken, requireSubscription, 
     );
 
     products.forEach(product => {
-      const imageUrls = product.images ? product.images.split(',').filter(Boolean) : [];
-      product.product_images = imageUrls.map((url, index) => ({ url, is_primary: index === 0 }));
+      const imageUrls = product.images ? product.images.split('||').filter(Boolean) : [];
+      product.product_images = imageUrls.map((url, index) => ({ url: buildImageUrl(req, url), is_primary: index === 0 }));
       product.stock_qty = product.stock ?? 0;
       product.compare_price = product.compare_price ?? null;
       product.tags = product.tags ? (Array.isArray(product.tags) ? product.tags : product.tags.split(',').map((tag) => tag.trim()).filter(Boolean)) : [];
@@ -889,8 +997,10 @@ router.get('/categories/list', async (req, res) => {
 // Create product (seller only)
 router.post('/', authenticateToken, requireSubscription, upload.array('images', 8), [
   body('name').trim().isLength({ min: 2 }),
-  body('description').trim().isLength({ min: 3 }),
+  body('description').optional({ checkFalsy: true }).trim().isLength({ min: 3 }),
   body('price').isFloat({ min: 0 }),
+  body('compare_price').optional({ checkFalsy: true }).isFloat({ min: 0 }),
+  body('stock').optional({ checkFalsy: true }).isInt({ min: 0 }),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -903,12 +1013,17 @@ router.post('/', authenticateToken, requireSubscription, upload.array('images', 
     }
 
     const db = req.db;
-    const { name, description, price, stock, category_id } = req.body;
+    const { name, description = '', price, stock, stock_qty, category_id, categoryId, compare_price, comparePrice, is_featured, isFeatured } = req.body;
+    const resolvedStock = stock ?? stock_qty ?? 0;
+    const resolvedCategoryId = category_id || categoryId || null;
+    const resolvedComparePrice = compare_price ?? comparePrice ?? null;
+    const resolvedIsFeatured = is_featured ?? isFeatured ? 1 : 0;
+    const sellerId = req.user.userId || req.user.id;
 
     // Get seller's store
     const [stores] = await db.execute(
       'SELECT id FROM stores WHERE owner_id = ? AND is_approved = true',
-      [req.user.id]
+      [sellerId]
     );
 
     if (stores.length === 0) {
@@ -920,22 +1035,22 @@ router.post('/', authenticateToken, requireSubscription, upload.array('images', 
     // Insert product
     const [result] = await db.execute(
       'INSERT INTO products (store_id, category_id, name, slug, description, price, stock, is_approved, is_active) VALUES (?, ?, ?, ?, ?, ?, ?, false, true)',
-      [storeId, category_id || null, name, name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), description, price, stock || 0]
+      [storeId, resolvedCategoryId, name, name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), description, price, resolvedStock]
     );
 
     const productId = result.insertId;
 
     // Handle images
     if (req.files && req.files.length > 0) {
-      const imageValues = req.files.map((file, index) => [
-        productId,
-        `/uploads/${file.filename}`,
-        index
-      ]);
+      const placeholders = req.files.map(() => '(?, ?, ?)').join(', ');
+      const imageValues = [];
+      req.files.forEach((file, index) => {
+        imageValues.push(productId, `/uploads/${file.filename}`, index);
+      });
 
       await db.execute(
-        'INSERT INTO product_images (product_id, image_url, sort_order) VALUES ?',
-        [imageValues]
+        `INSERT INTO product_images (product_id, image_url, sort_order) VALUES ${placeholders}`,
+        imageValues
       );
     }
 
@@ -949,9 +1064,11 @@ router.post('/', authenticateToken, requireSubscription, upload.array('images', 
 
 // Update product (seller only)
 router.put('/:id', authenticateToken, requireSubscription, upload.array('images', 8), [
-  body('name').trim().isLength({ min: 2 }),
-  body('description').trim().isLength({ min: 3 }),
-  body('price').isFloat({ min: 0 }),
+  body('name').optional().trim().isLength({ min: 2 }),
+  body('description').optional({ checkFalsy: true }).trim().isLength({ min: 3 }),
+  body('price').optional().isFloat({ min: 0 }),
+  body('compare_price').optional({ checkFalsy: true }).isFloat({ min: 0 }),
+  body('stock').optional({ checkFalsy: true }).isInt({ min: 0 }),
 ], async (req, res) => {
   try {
     const errors = validationResult(req);
@@ -965,23 +1082,62 @@ router.put('/:id', authenticateToken, requireSubscription, upload.array('images'
 
     const db = req.db;
     const { id } = req.params;
-    const { name, description, price, stock, category_id } = req.body;
+    const { name, description, price, stock, stock_qty, category_id, categoryId, compare_price, comparePrice, is_featured, isFeatured, slug } = req.body;
+    const sellerId = req.user.userId || req.user.id;
 
     // Check if product belongs to seller
     const [products] = await db.execute(
       'SELECT p.id FROM products p JOIN stores s ON p.store_id = s.id WHERE p.id = ? AND s.owner_id = ?',
-      [id, req.user.id]
+      [id, sellerId]
     );
 
     if (products.length === 0) {
       return res.status(404).json({ error: 'Product not found or not owned by seller' });
     }
 
-    // Update product
-    await db.execute(
-      'UPDATE products SET name = ?, slug = ?, description = ?, price = ?, stock = ?, category_id = ?, updated_at = NOW() WHERE id = ?',
-      [name, name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''), description, price, stock || 0, category_id || null, id]
-    );
+    // Build update fields dynamically
+    const updates = [];
+    const values = [];
+
+    if (name) {
+      updates.push('name = ?');
+      values.push(name);
+      updates.push('slug = ?');
+      values.push(slug || name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, ''));
+    }
+    
+    if (description !== undefined) {
+      updates.push('description = ?');
+      values.push(description || null);
+    }
+    
+    if (price !== undefined) {
+      updates.push('price = ?');
+      values.push(price);
+    }
+    
+    if (stock !== undefined || stock_qty !== undefined) {
+      updates.push('stock = ?');
+      values.push(stock ?? stock_qty ?? 0);
+    }
+    
+    if (category_id !== undefined || categoryId !== undefined) {
+      updates.push('category_id = ?');
+      values.push(category_id || categoryId || null);
+    }
+    
+    if (compare_price !== undefined || comparePrice !== undefined) {
+      updates.push('compare_price = ?');
+      values.push(compare_price ?? comparePrice ?? null);
+    }
+
+    updates.push('updated_at = NOW()');
+    values.push(id);
+
+    if (updates.length > 1) { // At least one field + updated_at
+      const sql = `UPDATE products SET ${updates.join(', ')} WHERE id = ?`;
+      await db.execute(sql, values);
+    }
 
     // Handle images (if provided)
     if (req.files && req.files.length > 0) {
@@ -989,15 +1145,15 @@ router.put('/:id', authenticateToken, requireSubscription, upload.array('images'
       await db.execute('DELETE FROM product_images WHERE product_id = ?', [id]);
 
       // Insert new images
-      const imageValues = req.files.map((file, index) => [
-        id,
-        `/uploads/${file.filename}`,
-        index
-      ]);
+      const placeholders = req.files.map(() => '(?, ?, ?)').join(', ');
+      const imageValues = [];
+      req.files.forEach((file, index) => {
+        imageValues.push(id, `/uploads/${file.filename}`, index);
+      });
 
       await db.execute(
-        'INSERT INTO product_images (product_id, image_url, sort_order) VALUES ?',
-        [imageValues]
+        `INSERT INTO product_images (product_id, image_url, sort_order) VALUES ${placeholders}`,
+        imageValues
       );
     }
 
@@ -1018,11 +1174,12 @@ router.delete('/:id', authenticateToken, async (req, res) => {
 
     const db = req.db;
     const { id } = req.params;
+    const sellerId = req.user.userId || req.user.id;
 
     // Check if product belongs to seller
     const [products] = await db.execute(
       'SELECT p.id FROM products p JOIN stores s ON p.store_id = s.id WHERE p.id = ? AND s.owner_id = ?',
-      [id, req.user.id]
+      [id, sellerId]
     );
 
     if (products.length === 0) {

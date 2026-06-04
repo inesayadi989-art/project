@@ -1,11 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
-import { LayoutDashboard, Users, Package, ShoppingBag, ShieldCheck } from 'lucide-react';
+import { LayoutDashboard, Users, Package, ShoppingBag, ShieldCheck, Wallet } from 'lucide-react';
 
 const navItems = [
   { to: '/admin', label: 'Tableau de bord', icon: LayoutDashboard, exact: true },
   { to: '/admin/users', label: 'Utilisateurs', icon: Users },
   { to: '/admin/products', label: 'Produits', icon: Package },
   { to: '/admin/orders', label: 'Commandes', icon: ShoppingBag },
+  { to: '/admin/vendor-payments', label: 'Paiements vendeurs', icon: Wallet },
+  { to: '/admin/subscriptions', label: 'Abonnements', icon: ShieldCheck },
 ];
 
 interface AdminLayoutProps {
@@ -17,6 +19,7 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
 
   return (
     <div className="flex min-h-screen bg-gray-50">
+      {/* Sidebar desktop */}
       <aside className="w-56 bg-white border-r border-gray-100 flex-shrink-0 hidden md:block">
         <div className="p-4 border-b border-gray-100">
           <h2 className="font-bold text-gray-900 flex items-center gap-2">
@@ -24,9 +27,13 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
             Administration
           </h2>
         </div>
+
         <nav className="p-2">
           {navItems.map(({ to, label, icon: Icon, exact }) => {
-            const isActive = exact ? location.pathname === to : location.pathname.startsWith(to);
+            const isActive = exact
+              ? location.pathname === to
+              : location.pathname.startsWith(to);
+
             return (
               <Link
                 key={to}
@@ -45,11 +52,14 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </nav>
       </aside>
 
-      {/* Mobile tabs */}
+      {/* Mobile bottom navigation */}
       <div className="md:hidden fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-20">
         <div className="flex">
           {navItems.map(({ to, label, icon: Icon, exact }) => {
-            const isActive = exact ? location.pathname === to : location.pathname.startsWith(to);
+            const isActive = exact
+              ? location.pathname === to
+              : location.pathname.startsWith(to);
+
             return (
               <Link
                 key={to}
@@ -66,7 +76,10 @@ export default function AdminLayout({ children }: AdminLayoutProps) {
         </div>
       </div>
 
-      <main className="flex-1 p-6 pb-20 md:pb-6 min-w-0">{children}</main>
+      {/* Main content */}
+      <main className="flex-1 p-6 pb-20 md:pb-6 min-w-0">
+        {children}
+      </main>
     </div>
   );
 }

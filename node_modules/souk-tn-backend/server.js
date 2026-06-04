@@ -4,6 +4,7 @@ const mysql = require('mysql2/promise');
 const dotenv = require('dotenv');
 const fs = require('fs');
 const path = require('path');
+
 const authRoutes = require('./routes/auth');
 const productRoutes = require('./routes/products');
 const orderRoutes = require('./routes/orders');
@@ -11,7 +12,8 @@ const adminRoutes = require('./routes/admin');
 const paymentRoutes = require('./routes/payments');
 const subscriptionRoutes = require('./routes/subscriptions');
 const smartAssistantRoutes = require('./routes/smartAssistant');
-const { requireSubscription } = require('./middleware/auth');
+const analyticsRoutes = require('./routes/analytics');
+const notificationRoutes = require('./routes/notifications');
 
 dotenv.config({ path: path.join(__dirname, '.env') });
 
@@ -24,8 +26,6 @@ app.use(cors({
   credentials: true
 }));
 
-// Don't use express.json() globally - let routes handle it
-// This allows custom UTF-8 handling per route
 app.use(express.urlencoded({ 
   extended: true,
   limit: '10mb'
@@ -37,26 +37,28 @@ app.use((req, res, next) => {
   next();
 });
 
+// Uploads folder
 const uploadsDir = path.join(__dirname, 'uploads');
 if (!fs.existsSync(uploadsDir)) {
   fs.mkdirSync(uploadsDir, { recursive: true });
 }
 app.use('/uploads', express.static(uploadsDir));
 
-// Database connection
+// Database connection pool
 let db;
-async function connectDB() {
+function connectDB() {
   try {
-    db = await mysql.createConnection({
+    db = mysql.createPool({
       host: process.env.DB_HOST || 'localhost',
       user: process.env.DB_USER || 'root',
       password: process.env.DB_PASSWORD || '',
       database: process.env.DB_NAME || 'souk_tn',
+      charset: 'utf8mb4',
       waitForConnections: true,
       connectionLimit: 10,
       queueLimit: 0
     });
-    console.log('✅ Connected to MySQL database');
+    console.log('✅ Connected to MySQL database pool');
   } catch (error) {
     console.error('❌ Database connection failed:', error);
     process.exit(1);
@@ -69,22 +71,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// Add JSON parsing to specific routes (except smart assistant)
+// Routes
 app.use('/api/auth', express.json({ limit: '10mb' }), authRoutes);
 app.use('/api/products', express.json({ limit: '10mb' }), productRoutes);
 app.use('/api/orders', express.json({ limit: '10mb' }), orderRoutes);
 app.use('/api/admin', express.json({ limit: '10mb' }), adminRoutes);
 app.use('/api/payments', express.json({ limit: '10mb' }), paymentRoutes);
 app.use('/api/subscriptions', express.json({ limit: '10mb' }), subscriptionRoutes);
-// Smart assistant has custom raw body parser
-app.use('/api/assistant', smartAssistantRoutes);
+app.use('/api/assistant', express.json({ limit: '10mb' }), smartAssistantRoutes);
+app.use('/api/analytics', express.json({ limit: '10mb' }), analyticsRoutes);
+app.use('/api/notifications', express.json({ limit: '10mb' }), notificationRoutes);
 
 // Health check
 app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', message: 'Souk.tn Backend is running' });
 });
 
-// Error handling middleware
+// Error handling
 app.use((err, req, res, next) => {
   console.error(err.stack);
   res.status(500).json({ error: 'Something went wrong!' });
@@ -96,8 +99,8 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-async function startServer() {
-  await connectDB();
+function startServer() {
+  connectDB();
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📡 API available at http://localhost:${PORT}/api`);

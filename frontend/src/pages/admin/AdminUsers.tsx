@@ -4,29 +4,42 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../../lib/api';
 import AdminLayout from './AdminLayout';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
-import BackButton from '../../components/UI/BackButton';
 import type { Profile, Store as StoreType } from '../../lib/types';
 import toast from 'react-hot-toast';
 
 type Tab = 'users' | 'stores';
 
-function useAdminUsers() {
+// Utility function to format dates
+const formatDate = (dateString: string | null | undefined): string => {
+  if (!dateString) return 'N/A';
+  try {
+    const date = new Date(dateString);
+    if (isNaN(date.getTime())) return 'N/A';
+    return date.toLocaleDateString('fr-FR');
+  } catch {
+    return 'N/A';
+  }
+};
+
+function useAdminUsers(role?: string) {
   return useQuery({
-    queryKey: ['admin-users'],
+    queryKey: ['admin-users', role],
     queryFn: async () => {
       const { users } = await api.getAdminUsers();
+      if (role) {
+        return (users as Profile[]).filter(u => u.role === role);
+      }
       return users as Profile[];
     },
   });
 }
 
-function useAdminStores(subscriptionStatus: string) {
+function useAdminStores() {
   return useQuery({
-    queryKey: ['admin-stores', subscriptionStatus],
+    queryKey: ['admin-stores'],
     queryFn: async () => {
-      const query = subscriptionStatus ? { subscriptionStatus } : {};
-      const { stores } = await api.getAdminStores(query);
-      return stores as (StoreType & { owner: { full_name: string; email: string } })[];
+      const { stores } = await api.getAdminStores();
+      return stores as StoreType[];
     },
   });
 }
@@ -38,8 +51,8 @@ export default function AdminUsers() {
   const [subscriptionFilter, setSubscriptionFilter] = useState('');
   const queryClient = useQueryClient();
 
-  const { data: users, isLoading: usersLoading } = useAdminUsers();
-  const { data: stores, isLoading: storesLoading } = useAdminStores(subscriptionFilter);
+  const { data: users, isLoading: usersLoading } = useAdminUsers('customer');
+  const { data: stores, isLoading: storesLoading } = useAdminStores();
 
   const banUser = useMutation({
     mutationFn: async ({ userId, ban }: { userId: string; ban: boolean }) => {
@@ -47,6 +60,7 @@ export default function AdminUsers() {
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-users'] });
+      queryClient.invalidateQueries({ queryKey: ['admin-stores'] });
     },
   });
 
@@ -57,6 +71,19 @@ export default function AdminUsers() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['admin-stores'] });
     },
+  });
+
+  const markStorePaid = useMutation({
+    mutationFn: async ({ storeId }: { storeId: string }) => {
+      return await api.markStorePaid(storeId);
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['admin-stores'] });
+      toast.success('Paiement marqué et vendeur notifié');
+    },
+    onError: (err: any) => {
+      toast.error(err?.message || 'Erreur lors du marquage du paiement');
+    }
   });
 
   const filteredUsers = (users ?? []).filter((u) =>
@@ -77,11 +104,7 @@ export default function AdminUsers() {
   return (
     <AdminLayout>
       <div className="space-y-6">
-        <div>
-          <BackButton />
-
-          <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
-        </div>
+        <h1 className="text-2xl font-bold text-gray-900">Admin Panel</h1>
 
         <div className="flex gap-2 border-b border-gray-100">
           <button
@@ -90,7 +113,7 @@ export default function AdminUsers() {
               activeTab === 'users' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500'
             }`}
           >
-            <Users size={16} /> Users ({users?.length ?? 0})
+            <Users size={16} /> Client ({users?.length ?? 0})
           </button>
           <button
             onClick={() => setActiveTab('stores')}
@@ -98,7 +121,7 @@ export default function AdminUsers() {
               activeTab === 'stores' ? 'border-primary-600 text-primary-600' : 'border-transparent text-gray-500'
             }`}
           >
-            <Store size={16} /> Vendors ({stores?.length ?? 0})
+            <Store size={16} /> Vendeurs ({stores?.length ?? 0})
           </button>
         </div>
 
@@ -117,6 +140,10 @@ export default function AdminUsers() {
 
             {usersLoading ? (
               <div className="flex justify-center py-8"><LoadingSpinner /></div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="card p-8 text-center">
+                <p className="text-gray-500">Aucun client trouvé</p>
+              </div>
             ) : (
               <div className="card overflow-hidden">
                 <div className="overflow-x-auto">
@@ -151,14 +178,14 @@ export default function AdminUsers() {
                               <button
                                 onClick={() => {
                                   banUser.mutate({ userId: user.id, ban: !user.is_banned });
-                                  toast.success(user.is_banned ? 'Utilisateur débloqué' : 'Utilisateur banni');
+                                  toast.success(user.is_banned ? 'Utilisateur débloqué' : 'Utilisateur bloqué');
                                 }}
                                 className={`text-xs font-medium flex items-center gap-1 ml-auto ${
                                   user.is_banned ? 'text-green-600 hover:text-green-700' : 'text-red-600 hover:text-red-700'
                                 }`}
                               >
                                 {user.is_banned ? <CheckCircle size={13} /> : <Ban size={13} />}
-                                {user.is_banned ? 'Débloquer' : 'Bannir'}
+                                {user.is_banned ? 'Débloquer' : 'Bloquer'}
                               </button>
                             )}
                           </td>
@@ -174,108 +201,118 @@ export default function AdminUsers() {
 
         {activeTab === 'stores' && (
           <>
-            <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-              <div className="relative flex-1">
-                <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
-                <input
-                  type="text"
-                  value={storeSearch}
-                  onChange={(e) => setStoreSearch(e.target.value)}
-                  placeholder="Search vendors..."
-                  className="input-field pl-9"
-                />
-              </div>
-              <div className="flex flex-wrap gap-2">
-                {['', 'active', 'pending', 'expired'].map((status) => (
-                  <button
-                    key={status}
-                    onClick={() => setSubscriptionFilter(status)}
-                    className={`rounded-full border px-3 py-2 text-xs font-medium transition-colors ${
-                      subscriptionFilter === status
-                        ? 'border-primary-600 bg-primary-50 text-primary-700'
-                        : 'border-gray-200 bg-white text-gray-600 hover:border-gray-300'
-                    }`}
-                  >
-                    {status === '' ? 'All' : status === 'active' ? '🟢 Active' : status === 'pending' ? '🟡 Pending' : '🔴 Expired'}
-                  </button>
-                ))}
-              </div>
+            <div className="relative">
+              <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
+              <input
+                type="text"
+                value={storeSearch}
+                onChange={(e) => setStoreSearch(e.target.value)}
+                placeholder="Rechercher un vendeur..."
+                className="input-field pl-9"
+              />
             </div>
 
             {storesLoading ? (
               <div className="flex justify-center py-8"><LoadingSpinner /></div>
+            ) : filteredStores.length === 0 ? (
+              <div className="card p-8 text-center">
+                <p className="text-gray-500">Aucun vendeur trouvé</p>
+              </div>
             ) : (
               <div className="card overflow-hidden">
                 <div className="overflow-x-auto">
                   <table className="w-full">
                     <thead className="bg-gray-50 border-b border-gray-100">
                       <tr>
-                        <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Vendor</th>
-                        <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Owner</th>
-                        <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Status</th>
+                        <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Vendeurs</th>
+                        <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Propriétaire</th>
                         <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Plan</th>
-                        <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Expiry</th>
-                        <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Next Payment</th>
+                        <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Abonnement</th>
+                        <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Expiration</th>
+                        <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Prochain paiement</th>
                         <th className="text-right text-xs font-semibold text-gray-500 uppercase px-4 py-3">Action</th>
                       </tr>
                     </thead>
                     <tbody className="divide-y divide-gray-50">
-                      {filteredStores.map((store) => (
-                        <tr key={store.id} className="hover:bg-gray-50">
-                          <td className="px-4 py-3">
-                            <div className="flex items-center gap-2">
-                              {store.logo_url ? (
-                                <img src={store.logo_url} alt={store.name} className="w-8 h-8 object-cover rounded-lg flex-shrink-0" />
-                              ) : (
-                                <div className="w-8 h-8 bg-primary-100 rounded-lg flex items-center justify-center flex-shrink-0">
-                                  <Store size={14} className="text-primary-600" />
-                                </div>
-                              )}
-                              <div>
-                                <p className="text-sm font-medium text-gray-900">{store.name}</p>
-                                <p className="text-xs text-gray-400">{store.governorate}</p>
+                      {filteredStores.map((store) => {
+                        // Plan display - use plan_name from subscription if available
+                        const planLabel = (store as any).subscription_plan_name || 'Aucun plan';
+                        const subscriptionStatusLabel = store.subscription_status === 'active' && store.subscription_payment_status === 'paid'
+                          ? 'Actif'
+                          : store.subscription_status === 'active' && store.subscription_payment_status === 'unpaid'
+                            ? 'En attente de paiement'
+                            : store.subscription_status === 'pending'
+                              ? 'En attente'
+                              : store.subscription_status === 'rejected' || store.subscription_status === 'rejected_by_vendor'
+                                ? 'Rejeté'
+                                : 'Expiré';
+                        const subscriptionStatusColor = store.subscription_status === 'active' && store.subscription_payment_status === 'paid'
+                          ? 'bg-green-100 text-green-700'
+                          : store.subscription_status === 'active' && store.subscription_payment_status === 'unpaid'
+                            ? 'bg-yellow-100 text-yellow-700'
+                            : store.subscription_status === 'pending'
+                              ? 'bg-yellow-100 text-yellow-700'
+                              : store.subscription_status === 'rejected' || store.subscription_status === 'rejected_by_vendor'
+                                ? 'bg-red-100 text-red-700'
+                                : 'bg-red-100 text-red-700';
+                        
+                        // Format dates safely
+                        const expiryDate = formatDate(store.subscription_current_period_end);
+                        const nextPaymentDate = formatDate(store.subscription_next_payment_date);
+                        
+                        // Use owner_is_banned to determine button state
+                        const isOwnerBanned = !!store.owner_is_banned;
+
+                        return (
+                          <tr key={store.id} className="hover:bg-gray-50">
+                            <td className="px-4 py-3">
+                              <p className="text-sm font-medium text-gray-900">{store.name}</p>
+                            </td>
+                            <td className="px-4 py-3">
+                              <p className="text-sm text-gray-600">{store.owner_name || 'N/A'}</p>
+                              <p className="text-xs text-gray-500">{store.owner_email || 'N/A'}</p>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{planLabel}</td>
+                            <td className="px-4 py-3">
+                              <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${subscriptionStatusColor}`}>
+                                {subscriptionStatusLabel}
+                              </span>
+                            </td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{expiryDate}</td>
+                            <td className="px-4 py-3 text-sm text-gray-600">{nextPaymentDate}</td>
+                            <td className="px-4 py-3 text-right">
+                              <div className="flex items-center justify-end gap-2">
+                                {Number(store.wallet_balance || 0) >= 500 && (
+                                  <button
+                                    onClick={() => {
+                                      const ok = window.confirm('Marquer le paiement du vendeur comme effectué ?');
+                                      if (!ok) return;
+                                      markStorePaid.mutate({ storeId: store.id });
+                                    }}
+                                    disabled={markStorePaid.isLoading}
+                                    className="text-xs font-medium bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700"
+                                  >
+                                    {markStorePaid.isLoading ? 'En cours...' : 'Marquer comme payé'}
+                                  </button>
+                                )}
+
+                                <button
+                                  onClick={() => {
+                                    banUser.mutate({ userId: store.owner_id, ban: !isOwnerBanned });
+                                    toast.success(isOwnerBanned ? 'Vendeur débloqué' : 'Vendeur bloqué');
+                                  }}
+                                  className={`text-xs font-medium flex items-center gap-1 ${
+                                    isOwnerBanned ? 'text-green-600 hover:text-green-700' : 'text-red-600 hover:text-red-700'
+                                  }`}
+                                >
+                                  {isOwnerBanned ? <CheckCircle size={13} /> : <Ban size={13} />}
+                                  {isOwnerBanned ? 'Débloquer' : 'Bloquer'}
+                                </button>
                               </div>
-                            </div>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {(store as { owner?: { full_name: string } }).owner?.full_name ?? 'N/A'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            <span className={`inline-flex items-center rounded-full px-2 py-1 text-xs font-semibold ${
-                              store.subscription_status === 'active'
-                                ? 'bg-green-100 text-green-700'
-                                : store.subscription_status === 'pending'
-                                  ? 'bg-yellow-100 text-yellow-700'
-                                  : 'bg-red-100 text-red-700'
-                            }`}>
-                              {store.subscription_status === 'active' ? '🟢 Active' : store.subscription_status === 'pending' ? '🟡 Pending' : '🔴 Expired'}
-                            </span>
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {store.subscription_interval ? (store.subscription_interval === 'yearly' ? 'Yearly' : 'Monthly') : 'No plan'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {store.subscription_current_period_end ?? 'N/A'}
-                          </td>
-                          <td className="px-4 py-3 text-sm text-gray-600">
-                            {store.subscription_next_payment_date ?? 'N/A'}
-                          </td>
-                          <td className="px-4 py-3 text-right">
-                            <button
-                              onClick={() => {
-                                approveStore.mutate({ storeId: store.id, approve: !store.is_approved });
-                                toast.success(store.is_approved ? 'Vendor disabled' : 'Vendor enabled');
-                              }}
-                              className={`text-xs font-medium flex items-center gap-1 ml-auto ${
-                                store.is_approved ? 'text-red-600 hover:text-red-700' : 'text-green-600 hover:text-green-700'
-                              }`}
-                            >
-                              {store.is_approved ? <Ban size={13} /> : <CheckCircle size={13} />}
-                              {store.is_approved ? 'Disable' : 'Enable'}
-                            </button>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                          </tr>
+                        );
+                      })}
                     </tbody>
                   </table>
                 </div>

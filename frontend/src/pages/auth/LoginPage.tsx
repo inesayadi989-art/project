@@ -23,7 +23,12 @@ export default function LoginPage() {
       navigate('/');
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erreur de connexion';
-      setError(msg === 'Invalid login credentials' ? 'Email ou mot de passe incorrect' : msg);
+      const userMsg = msg === 'Invalid login credentials' ? 'Email ou mot de passe incorrect' : msg;
+      setError(userMsg);
+      // If backend indicates email not verified, redirect to verification page
+      if (typeof msg === 'string' && msg.toLowerCase().includes('email not verified')) {
+        navigate('/verify-email', { state: { email } });
+      }
     } finally {
       setLoading(false);
     }
@@ -85,6 +90,11 @@ export default function LoginPage() {
                   {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                 </button>
               </div>
+            </div>
+            <div className="text-right">
+              <Link to="/forgot-password" className="text-sm text-primary-600 hover:text-primary-700 font-medium">
+                Mot de passe oublié ?
+              </Link>
             </div>
             <button type="submit" disabled={loading} className="w-full btn-primary py-2.5">
               {loading ? 'Connexion...' : 'Se connecter'}

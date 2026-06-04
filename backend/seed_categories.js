@@ -13,18 +13,16 @@ async function seedCategories() {
 
     console.log('✅ Connected to database');
 
+    await db.execute("DELETE FROM categories WHERE slug = 'alimentation-produits-locaux'");
+
     // Insert default categories
     const categories = [
-      { name: 'Électronique', slug: 'electronique', description: 'Produits électroniques et gadgets', display_order: 1 },
-      { name: 'Mode & Vêtements', slug: 'mode-vetements', description: 'Vêtements et accessoires de mode', display_order: 2 },
-      { name: 'Maison & Déco', slug: 'maison-deco', description: 'Articles pour la maison et décoration', display_order: 3 },
-      { name: 'Alimentation', slug: 'alimentation', description: 'Produits alimentaires et boissons', display_order: 4 },
-      { name: 'Artisanat & Art', slug: 'artisanat-art', description: 'Produits artisanaux et œuvres d\'art', display_order: 5 },
-      { name: 'Sport & Loisirs', slug: 'sport-loisirs', description: 'Équipements sportifs et loisirs', display_order: 6 },
-      { name: 'Livres & Papeterie', slug: 'livres-papeterie', description: 'Livres et fournitures scolaires', display_order: 7 },
-      { name: 'Santé & Beauté', slug: 'sante-beaute', description: 'Produits de santé et beauté', display_order: 8 },
-      { name: 'Jardinage', slug: 'jardinage', description: 'Outils et plantes de jardinage', display_order: 9 },
-      { name: 'Animaux', slug: 'animaux', description: 'Produits pour animaux de compagnie', display_order: 10 }
+      { name: '📱 Électronique', slug: 'electronique', description: 'Produits électroniques et gadgets', display_order: 1 },
+      { name: '👕 Mode & Vêtements', slug: 'mode-vetements', description: 'Vêtements et accessoires de mode', display_order: 2 },
+      { name: '🏠 Maison & Déco', slug: 'maison-deco', description: 'Articles pour la maison et décoration', display_order: 3 },
+      { name: '💄 Santé & Beauté', slug: 'sante-beaute', description: 'Produits bien-être, beauté et santé', display_order: 4 },
+      { name: '🧸 Sport & Loisirs', slug: 'sport-loisirs', description: 'Équipements de sport et activités de loisir', display_order: 5 },
+      { name: '🎨 Artisanat & Art', slug: 'artisanat-art', description: 'Produits artisanaux et œuvres d\'art', display_order: 6 }
     ];
 
     for (const category of categories) {

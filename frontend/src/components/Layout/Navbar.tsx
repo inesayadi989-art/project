@@ -1,22 +1,29 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { ShoppingBag, Search, ShoppingCart, User, Menu, X, ChevronDown, LogOut, Settings, Package, LayoutDashboard } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
+import { ShoppingBag, Search, ShoppingCart, Menu, X, ChevronDown, LogOut, Settings, LayoutDashboard, Bell } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useCartStore } from '../../store/cartStore';
 import { useCategories } from '../../hooks/useProducts';
+import { useSubscriptionNotifications } from '../../hooks/useNotifications';
 import CartDrawer from '../Cart/CartDrawer';
+import { NotificationDropdown } from './NotificationDropdown';
 import toast from 'react-hot-toast';
 
 export default function Navbar() {
   const [cartOpen, setCartOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [notificationDropdownOpen, setNotificationDropdownOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
-  const { user, profile, signOut } = useAuthStore();
+  const location = useLocation();
+  const { user, profile, signOut, isClientMode, setClientMode } = useAuthStore();
   const { getCount } = useCartStore();
   const { data: categories } = useCategories();
+  const { data: notifications } = useSubscriptionNotifications({ enabled: !!user });
   const cartCount = getCount();
+  const unreadCount = (notifications ?? []).filter((n: any) => !n.is_read).length;
+  const showCartButton = profile?.role !== 'admin' && profile?.role !== 'seller';
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,15 +49,16 @@ export default function Navbar() {
 
   return (
     <>
-      <header className="sticky top-0 z-30 bg-white shadow-sm border-b border-gray-100">
+      <header className="sticky top-0 z-30 bg-white shadow-md border-b-2 border-primary-600">
         <div className="max-w-7xl mx-auto px-4">
           <div className="flex items-center gap-4 h-16">
-            <Link to="/" className="flex items-center gap-2 flex-shrink-0">
-              <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center">
+            <Link to="/" className="flex items-center gap-2 flex-shrink-0 group">
+              <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-primary-700 rounded-lg flex items-center justify-center shadow-md group-hover:shadow-lg transition-all">
                 <ShoppingBag size={18} className="text-white" />
               </div>
-              <span className="font-bold text-xl text-gray-900">Souk.tn</span>
+              <span className="font-bold text-xl bg-gradient-to-r from-primary-600 to-secondary-500 bg-clip-text text-transparent">Souk.tn</span>
             </Link>
+
 
             <form onSubmit={handleSearch} className="flex-1 max-w-xl hidden md:flex">
               <div className="relative w-full">
@@ -60,31 +68,53 @@ export default function Navbar() {
                   value={searchQuery}
                   onChange={(e) => setSearchQuery(e.target.value)}
                   placeholder="Rechercher des produits..."
-                  className="input-field pl-9 pr-4"
+                  className="input-field pl-9 pr-4 focus:ring-primary-600"
                 />
               </div>
             </form>
 
-            <div className="ml-auto flex items-center gap-2">
-              <button
-                onClick={() => setCartOpen(true)}
-                className="relative p-2 text-gray-600 hover:text-primary-600 transition-colors"
-              >
-                <ShoppingCart size={22} />
-                {cartCount > 0 && (
-                  <span className="absolute -top-1 -right-1 w-5 h-5 bg-primary-600 text-white text-xs font-bold rounded-full flex items-center justify-center">
-                    {cartCount > 99 ? '99+' : cartCount}
-                  </span>
-                )}
-              </button>
+            <div className="ml-auto flex items-center gap-3">
+                {showCartButton && (
+                <button
+                  onClick={() => setCartOpen(true)}
+                  className="relative p-2 text-gray-600 hover:text-primary-600 transition-all duration-200 hover:bg-primary-50 rounded-lg"
+                >
+                  <ShoppingCart size={22} />
+                  {cartCount > 0 && (
+                    <span className="absolute -top-1 -right-1 w-5 h-5 bg-gradient-to-br from-primary-600 to-primary-700 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-md">
+                      {cartCount > 99 ? '99+' : cartCount}
+                    </span>
+                  )}
+                </button>
+              )}
+
+              {user && (
+                <div className="relative">
+                  <button
+                    onClick={() => setNotificationDropdownOpen(!notificationDropdownOpen)}
+                    className="relative p-2 text-gray-600 hover:text-secondary-500 transition-all duration-200 hover:bg-secondary-50 rounded-lg"
+                  >
+                    <Bell size={22} />
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 w-5 h-5 bg-secondary-500 text-white text-xs font-bold rounded-full flex items-center justify-center shadow-md animate-pulse">
+                        {unreadCount > 99 ? '99+' : unreadCount}
+                      </span>
+                    )}
+                  </button>
+                  <NotificationDropdown
+                    isOpen={notificationDropdownOpen}
+                    onClose={() => setNotificationDropdownOpen(false)}
+                  />
+                </div>
+              )}
 
               {user ? (
                 <div className="relative">
                   <button
                     onClick={() => setUserMenuOpen(!userMenuOpen)}
-                    className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-gray-50 transition-colors"
+                    className="flex items-center gap-1.5 p-1.5 rounded-lg hover:bg-primary-50 transition-all duration-200"
                   >
-                    <div className="w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-sm font-semibold">
+                    <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-primary-700 text-white rounded-full flex items-center justify-center text-sm font-semibold shadow-md">
                       {initials}
                     </div>
                     <ChevronDown size={14} className="text-gray-400 hidden sm:block" />
@@ -96,32 +126,34 @@ export default function Navbar() {
                         className="fixed inset-0 z-10"
                         onClick={() => setUserMenuOpen(false)}
                       />
-                      <div className="absolute right-0 top-full mt-1 w-48 bg-white rounded-xl shadow-lg border border-gray-100 z-20 py-1">
-                        <div className="px-3 py-2 border-b border-gray-50">
+                      <div className="absolute right-0 top-full mt-2 w-48 bg-white rounded-xl shadow-lg border border-gray-200 z-20 py-1 overflow-hidden">
+                        <div className="px-3 py-2 border-b-2 border-primary-100 bg-gradient-to-r from-primary-50 to-transparent">
                           <p className="text-sm font-medium text-gray-900 truncate">
                             {profile?.full_name ?? 'Utilisateur'}
                           </p>
-                          <p className="text-xs text-gray-400 truncate">{user.email}</p>
+                          <p className="text-xs text-gray-500 truncate">{user.email}</p>
                         </div>
                         <Link
                           to="/profile"
                           onClick={() => setUserMenuOpen(false)}
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
                         >
                           <Settings size={15} /> Mon profil
                         </Link>
-                        <Link
-                          to="/orders"
-                          onClick={() => setUserMenuOpen(false)}
-                          className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        >
-                          <Package size={15} /> Mes commandes
-                        </Link>
+                        {profile?.role !== 'seller' && profile?.role !== 'admin' && (
+                          <Link
+                            to="/orders"
+                            onClick={() => setUserMenuOpen(false)}
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-primary-50 hover:text-primary-600 transition-colors"
+                          >
+                            <ShoppingBag size={15} /> Mes commandes
+                          </Link>
+                        )}
                         {profile?.role === 'seller' && (
                           <Link
                             to="/seller"
                             onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-secondary-50 hover:text-secondary-600 transition-colors"
                           >
                             <LayoutDashboard size={15} /> Seller Dashboard
                           </Link>
@@ -130,14 +162,14 @@ export default function Navbar() {
                           <Link
                             to="/admin"
                             onClick={() => setUserMenuOpen(false)}
-                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
+                            className="flex items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-secondary-50 hover:text-secondary-600 transition-colors"
                           >
                             <LayoutDashboard size={15} /> Admin
                           </Link>
                         )}
                         <button
                           onClick={handleSignOut}
-                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-red-600 hover:bg-red-50 transition-colors"
+                          className="flex w-full items-center gap-2 px-3 py-2 text-sm text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors"
                         >
                           <LogOut size={15} /> Déconnexion
                         </button>
@@ -158,7 +190,7 @@ export default function Navbar() {
 
               <button
                 onClick={() => setMobileMenuOpen(!mobileMenuOpen)}
-                className="md:hidden p-2 text-gray-600"
+                className="md:hidden p-2 text-gray-600 hover:text-primary-600 transition-colors"
               >
                 {mobileMenuOpen ? <X size={22} /> : <Menu size={22} />}
               </button>
@@ -166,18 +198,18 @@ export default function Navbar() {
           </div>
 
           {categories && categories.length > 0 && (
-            <div className="hidden md:flex items-center gap-1 overflow-x-auto scrollbar-hide pb-2 pt-1">
+            <div className="hidden md:flex items-center gap-1 overflow-x-auto scrollbar-hide pb-2 pt-1 border-t border-gray-100">
               <Link
                 to="/shop"
-                className="flex-shrink-0 text-xs text-gray-600 hover:text-primary-600 px-2 py-1 rounded-md hover:bg-gray-50 transition-colors"
+                className="flex-shrink-0 text-xs text-gray-600 hover:text-primary-600 px-3 py-2 rounded-md hover:bg-primary-50 transition-all font-medium"
               >
                 Tous
               </Link>
-              {categories.map((cat) => (
+              {categories.slice(0, 10).map((cat) => (
                 <Link
                   key={cat.id}
-                  to={`/shop?category=${cat.id}`}
-                  className="flex-shrink-0 text-xs text-gray-600 hover:text-primary-600 px-2 py-1 rounded-md hover:bg-gray-50 transition-colors whitespace-nowrap"
+                  to={`/shop?category=${cat.slug}`}
+                  className="flex-shrink-0 text-xs text-gray-600 hover:text-primary-600 px-3 py-2 rounded-md hover:bg-primary-50 transition-all whitespace-nowrap"
                 >
                   {cat.name}
                 </Link>
@@ -187,7 +219,7 @@ export default function Navbar() {
         </div>
 
         {mobileMenuOpen && (
-          <div className="md:hidden border-t border-gray-100 bg-white px-4 py-3 space-y-3">
+          <div className="md:hidden border-t-2 border-primary-100 bg-light px-4 py-3 space-y-3">
             <form onSubmit={handleSearch} className="flex">
               <div className="relative w-full">
                 <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" />
@@ -211,30 +243,23 @@ export default function Navbar() {
               </div>
             )}
             {user && (
-              <div className="flex items-center gap-2 py-1">
-                <div className="w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-sm font-semibold">
+              <div className="flex items-center gap-2 py-1 bg-primary-50 px-3 rounded-lg">
+                <div className="w-8 h-8 bg-gradient-to-br from-primary-600 to-primary-700 text-white rounded-full flex items-center justify-center text-sm font-semibold">
                   {initials}
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-900">{profile?.full_name}</p>
-                  <p className="text-xs text-gray-400">{user.email}</p>
+                  <p className="text-xs text-gray-500">{user.email}</p>
                 </div>
               </div>
             )}
             <div className="flex items-center gap-1 overflow-x-auto scrollbar-hide">
-              <Link
-                to="/shop"
-                onClick={() => setMobileMenuOpen(false)}
-                className="flex-shrink-0 text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full"
-              >
-                Tous
-              </Link>
-              {categories?.map((cat) => (
+              {categories?.slice(0, 8).map((cat) => (
                 <Link
                   key={cat.id}
-                  to={`/shop?category=${cat.id}`}
+                  to={`/shop?category=${cat.slug}`}
                   onClick={() => setMobileMenuOpen(false)}
-                  className="flex-shrink-0 text-xs bg-gray-100 text-gray-700 px-2.5 py-1 rounded-full"
+                  className="flex-shrink-0 text-xs bg-secondary-100 text-secondary-700 px-3 py-1.5 rounded-full font-medium hover:bg-secondary-200 transition-colors"
                 >
                   {cat.name}
                 </Link>
@@ -244,7 +269,8 @@ export default function Navbar() {
         )}
       </header>
 
-      <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />
+      {showCartButton && <CartDrawer isOpen={cartOpen} onClose={() => setCartOpen(false)} />}
     </>
+
   );
 }

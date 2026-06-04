@@ -458,35 +458,105 @@ interface CartItem {
 
 ## 🚀 ROADMAP PAR SPRINT
 
-### Sprint 1 (1-2 semaines)
-✅ Correction paiement client  
-✅ Tests D17 réels  
-✅ Webhook Konnect  
-✅ Email notifications
+### Sprint 1 : Authentification et gestion des utilisateurs (priorité haute)
+- Authentification : inscription, connexion, mot de passe.
+- Gestion des utilisateurs : création, lecture, modification du profil, rôle `customer` / `seller` / `admin`.
+- Contrôle des accès : pages publiques, pages protégées, navigation selon rôle.
+- Switch vendeur/client : interface pour basculer du mode vendeur au mode client.
+- Use cases : authentification, gérer utilisateurs, consulter la plateforme en tant que client.
 
-### Sprint 2 (2 semaines)
-✅ Inventory management  
-✅ Order tracking  
-✅ Seller analytics dashboard  
-✅ Review system
+### Sprint 2 : Consultation de la plateforme et gestion du panier (priorité haute)
+- Consultation du catalogue : page shop, recherche, filtres, catégories, fiche produit.
+- Use case commun : consulter la plateforme pour tous les utilisateurs.
+- Gestion du panier : ajout, modification de quantité, suppression, vue du total.
+- Passage de commande pour les clients et vendeurs en mode client.
+- Use cases : gérer panier, passer commande (vendeur en mode client).
 
-### Sprint 3 (2 semaines)
-✅ Advanced search  
-✅ Wishlist  
-✅ Messaging system  
-✅ Performance optimization
+### Sprint 3 : Gestion boutique, produits et abonnement vendeur (priorité moyenne)
+- Gestion boutique vendeur : créer et éditer les informations de la boutique.
+- Gestion produits : créer, modifier, supprimer, gérer le stock, prix, image.
+- Abonnement vendeur : souscription, renouvellement, page abonnement vendeur.
+- Use cases : passer abonnement (vendeur), gérer boutique, gérer produits.
 
-### Sprint 4 (3 semaines)
-✅ Mobile responsiveness  
-✅ Multi-language support  
-✅ SEO optimization  
-✅ Security audit
+### Sprint 4 : Traitement administrateur, commandes et dashboards (priorité moyenne)
+- Traitement des abonnements par l’admin : validation, gestion, suivi.
+- Traitement des commandes par l’admin : suivi, annulation, support, gestion du flux.
+- Dashboard vendeur : commandes reçues, performances, notifications, actions.
+- Dashboard admin : gestion utilisateurs, commandes, abonnements, statistiques.
+- Use cases : traiter abonnement (admin), traiter commande (admin), dashboards admin et vendeur.
 
-### Sprint 5+ (Futures)
-✅ Mobile apps  
-✅ AI features  
-✅ Loyalty program  
-✅ Enterprise features
+### Sprint 5 : Intégration externe, optimisation et stabilisation (priorité basse)
+- Intégration de Sarra pour le paiement / service externe.
+- Optimisations : performance, responsive, sécurité, UX.
+- Tests finaux : recette, correction de bugs, préparation à la production.
+- Use cases : intégration de Sarra, mise en production.
+
+---
+
+## 🧭 CHAPITRE : PLANIFICATION DES SPRINTS
+
+### 1. Objectif du chapitre
+Ce chapitre décrit la planification complète des sprints pour le projet Souk.tn. Il couvre la méthode, les livrables, les diagrammes globaux et le déroulé de chaque sprint.
+
+### 2. Méthodologie de sprint
+- Cadence : 1 à 2 semaines par sprint.
+- Rôles : Product Owner, chef de projet, équipe de développement, testeur.
+- Cycle : planification, développement, tests, revue, rétrospective.
+
+### 3. Diagramme global de sprint
+- Backlog produit → Sprint planning → Exécution → Tests/Recette → Revue → Rétrospective
+- Chaque sprint doit livrer un incrément fonctionnel valide et testable.
+
+### 4. Sprints détaillés
+#### Sprint 1 : Authentification et gestion des utilisateurs
+- Objectif : mettre en place les comptes, les rôles et la navigation sécurisée.
+- Livrables : pages login/register, profil, gestion client/vendeur/admin, store d’authentification.
+- Cas d’usage : s’inscrire, se connecter, gérer son profil, gérer les rôles, basculer en mode client.
+
+#### Sprint 2 : Consultation de la plateforme et gestion du panier
+- Objectif : offrir la consultation du catalogue et le parcours d’achat.
+- Livrables : page shop, recherche, fiche produit, panier, checkout, commandes clients.
+- Cas d’usage : consulter catalogue, rechercher produits, gérer panier, passer commande.
+
+#### Sprint 3 : Gestion boutique, produits et abonnement vendeur
+- Objectif : permettre au vendeur de gérer sa boutique, ses produits et son abonnement.
+- Livrables : pages boutique vendeur, gestion produits, souscription abonnement, renouvellement.
+- Cas d’usage : gérer boutique, gérer produits, passer abonnement vendeur.
+
+#### Sprint 4 : Traitement admin et dashboards
+- Objectif : compléter l’administration et les tableaux de bord métier.
+- Livrables : dashboards admin/vendeur, traitement abonnement/admin, traitement commande/admin.
+- Cas d’usage : traiter abonnement admin, traiter commande admin, consulter stats et performances.
+
+#### Sprint 5 : Intégration externe et stabilisation
+- Objectif : intégrer Sarra et stabiliser la plateforme avant mise en production.
+- Livrables : intégration Sarra, responsive, optimisation performance, tests finaux.
+- Cas d’usage : intégration Sarra, correction de bugs, mise en production.
+
+### 5. Diagrammes de sprint
+#### 5.1. Diagramme de cas d’utilisation global
+- Client : parcourir la boutique, ajouter au panier, passer commande, consulter commandes.
+- Vendeur : gérer produits, gérer boutique, consulter commandes, basculer en mode client.
+- Admin : gérer utilisateurs, suivre commandes, vérifier abonnements.
+
+#### 5.2. Diagramme de séquence global
+- Utilisateur se connecte > initialisation du profil > affichage de la navigation selon rôle > accès aux pages.
+- Client passe commande > création commande > notification vendeur > suivi commande.
+
+#### 5.3. Diagramme de classes principal
+- Entités : Utilisateur, Profil, Produit, Boutique, Panier, Commande, Abonnement, Notification.
+- Relations : un vendeur possède une boutique, une commande contient des produits, un client a un panier.
+
+### 6. Processus de pilotage
+- Avant sprint : collecte des besoins, rédaction des user stories, estimation, planning.
+- Pendant sprint : daily stand-up, suivi des tâches, tests continus.
+- Fin de sprint : revue, démonstration, validation PO, rétrospective.
+
+### 7. Roadmap de déploiement
+- Sprint 1 : base utilisateur et sécurité.
+- Sprint 2 : cœur marketplace et flux d’achat.
+- Sprint 3 : logique vente, commande, admin.
+- Sprint 4 : qualité, optimisation, release.
 
 ---
 

@@ -1,36 +1,39 @@
 import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { ShoppingCart, Heart, ChevronRight, Minus, Plus, Star, Store, Package } from 'lucide-react';
-import { useProduct, useProductReviews, useRelatedProducts, useTrackProductView } from '../hooks/useProducts';
+import { ShoppingCart, ChevronRight, Minus, Plus, Store, Package } from 'lucide-react';
+import { useProduct, useRelatedProducts, useTrackProductView } from '../hooks/useProducts';
 import { useCartStore } from '../store/cartStore';
 import { useAuthStore } from '../store/authStore';
 import ProductCard from '../components/UI/ProductCard';
-import StarRating from '../components/UI/StarRating';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
-import BackButton from '../components/UI/BackButton';
 import { formatPrice, getDiscountPercent } from '../lib/types';
 import { DEFAULT_PRODUCT_IMAGE } from '../components/UI/ProductCard';
 import toast from 'react-hot-toast';
 
 export default function ProductPage() {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuthStore();
+  const { user, profile, isClientMode } = useAuthStore();
   const { addItem } = useCartStore();
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
-  const [wishlisted, setWishlisted] = useState(false);
 
   const { data: product, isLoading } = useProduct(id ?? '');
-  const { data: reviews } = useProductReviews(id ?? '');
   const { data: relatedProducts } = useRelatedProducts(
     id ?? '',
-    product?.category_id ?? ''
+    product?.category?.slug ?? ''
   );
 
   useTrackProductView(user?.id, id ?? '');
 
   const handleAddToCart = () => {
     if (!user) { toast.error('Connectez-vous pour ajouter au panier'); return; }
+    // Only customers or sellers in client mode can add to cart
+    if (profile?.role !== 'customer' && !(profile?.role === 'seller' && isClientMode)) {
+      if (profile?.role === 'seller') {
+        toast.error('Activez le mode client pour ajouter au panier');
+      }
+      return;
+    }
     if (!product) return;
     addItem(product.id, quantity, product.price, {
       id: product.id,
@@ -40,22 +43,6 @@ export default function ProductPage() {
       product_images: product.product_images?.map((img) => ({ url: img.url, is_primary: img.is_primary })),
     });
     toast.success('Produit ajouté au panier');
-  };
-
-  const handleWishlist = async () => {
-    toast.error('Fonctionnalité des favoris non disponible pour le moment');
-    // Wishlist functionality not implemented yet
-    // if (!user) { toast.error('Connectez-vous pour ajouter aux favoris'); return; }
-    // if (!product) return;
-    // if (wishlisted) {
-    //   // Remove from wishlist
-    //   setWishlisted(false);
-    //   toast.success('Retiré des favoris');
-    // } else {
-    //   // Add to wishlist
-    //   setWishlisted(true);
-    //   toast.success('Ajouté aux favoris');
-    // }
   };
 
   if (isLoading) {
@@ -89,7 +76,7 @@ export default function ProductPage() {
         <ChevronRight size={14} />
         {product.category && (
           <>
-            <Link to={`/shop?category=${product.category.id}`} className="hover:text-primary-600">
+            <Link to={`/shop?category=${product.category.slug}`} className="hover:text-primary-600">
               {product.category.name}
             </Link>
             <ChevronRight size={14} />
@@ -97,8 +84,6 @@ export default function ProductPage() {
         )}
         <span className="text-gray-700 line-clamp-1">{product.name}</span>
       </nav>
-
-      <BackButton to="/shop" />
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-12">
         {/* Images */}
@@ -137,25 +122,27 @@ export default function ProductPage() {
         <div>
           <h1 className="text-2xl font-bold text-gray-900 mb-3">{product.name}</h1>
 
-          <div className="flex items-center gap-3 mb-4">
-            <StarRating rating={product.rating_avg} count={product.review_count} size="md" />
-            <span className="text-sm text-gray-400">•</span>
-            <span className="text-sm text-gray-500">{product.view_count} vues</span>
-          </div>
+          {profile?.role === 'seller' && (
+            <>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="text-sm text-gray-500">{product.view_count} vues</span>
+              </div>
 
-          <div className="flex items-center gap-2 mb-4">
-            {product.stock_qty > 0 ? (
-              <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
-                <span className="w-2 h-2 bg-green-500 rounded-full"></span>
-                En stock ({product.stock_qty} disponibles)
-              </span>
-            ) : (
-              <span className="flex items-center gap-1.5 text-sm text-red-600 font-medium">
-                <span className="w-2 h-2 bg-red-500 rounded-full"></span>
-                Rupture de stock
-              </span>
-            )}
-          </div>
+              <div className="flex items-center gap-2 mb-4">
+                {product.stock_qty > 0 ? (
+                  <span className="flex items-center gap-1.5 text-sm text-green-600 font-medium">
+                    <span className="w-2 h-2 bg-green-500 rounded-full"></span>
+                    En stock ({product.stock_qty} disponibles)
+                  </span>
+                ) : (
+                  <span className="flex items-center gap-1.5 text-sm text-red-600 font-medium">
+                    <span className="w-2 h-2 bg-red-500 rounded-full"></span>
+                    Rupture de stock
+                  </span>
+                )}
+              </div>
+            </>
+          )}
 
           <div className="flex items-end gap-3 mb-6">
             <span className="text-3xl font-bold text-gray-900">{formatPrice(product.price)}</span>
@@ -194,18 +181,10 @@ export default function ProductPage() {
             <button
               onClick={handleAddToCart}
               disabled={product.stock_qty === 0}
-              className="flex-1 btn-cart py-3"
+              className="flex-1 btn-primary py-3"
             >
               <ShoppingCart size={18} />
               {product.stock_qty === 0 ? 'Rupture de stock' : 'Ajouter au panier'}
-            </button>
-            <button
-              onClick={handleWishlist}
-              className={`p-3 rounded-lg border transition-colors ${
-                wishlisted ? 'bg-red-50 border-red-200 text-red-500' : 'border-gray-200 text-gray-400 hover:border-red-200 hover:text-red-400'
-              }`}
-            >
-              <Heart size={20} className={wishlisted ? 'fill-current' : ''} />
             </button>
           </div>
 
@@ -236,10 +215,11 @@ export default function ProductPage() {
                 )}
                 <div className="flex-1">
                   <h3 className="font-semibold text-gray-900">{product.store.name}</h3>
-                  <div className="flex items-center gap-1 mt-0.5">
-                    <Star size={12} className="fill-yellow-400 text-yellow-400" />
-                    <span className="text-xs text-gray-500">{product.store.rating_avg?.toFixed(1)}</span>
-                  </div>
+                  {product.store.rating_avg != null && (
+                    <div className="text-xs text-gray-500 mt-0.5">
+                      Note: {product.store.rating_avg.toFixed(1)}
+                    </div>
+                  )}
                 </div>
                 <Link
                   to={`/shop?store=${product.store_id}`}
@@ -261,69 +241,6 @@ export default function ProductPage() {
         </div>
       )}
 
-      {/* Reviews */}
-      <div className="card p-6 mb-8">
-        <h2 className="text-lg font-semibold text-gray-900 mb-6">Avis clients</h2>
-        {reviews && reviews.length > 0 ? (
-          <>
-            <div className="flex items-center gap-6 mb-6 p-4 bg-gray-50 rounded-xl">
-              <div className="text-center">
-                <div className="text-4xl font-bold text-gray-900">{product.rating_avg.toFixed(1)}</div>
-                <StarRating rating={product.rating_avg} size="md" />
-                <p className="text-xs text-gray-500 mt-1">{product.review_count} avis</p>
-              </div>
-              <div className="flex-1">
-                {[5, 4, 3, 2, 1].map((star) => {
-                  const count = reviews.filter((r) => Math.round(r.rating) === star).length;
-                  const pct = reviews.length > 0 ? (count / reviews.length) * 100 : 0;
-                  return (
-                    <div key={star} className="flex items-center gap-2 mb-1">
-                      <span className="text-xs w-3">{star}</span>
-                      <Star size={10} className="fill-yellow-400 text-yellow-400 flex-shrink-0" />
-                      <div className="flex-1 h-1.5 bg-gray-200 rounded-full overflow-hidden">
-                        <div
-                          className="h-full bg-yellow-400 rounded-full"
-                          style={{ width: `${pct}%` }}
-                        />
-                      </div>
-                      <span className="text-xs text-gray-400 w-6">{count}</span>
-                    </div>
-                  );
-                })}
-              </div>
-            </div>
-            <div className="space-y-4">
-              {reviews.map((review) => (
-                <div key={review.id} className="border-b border-gray-50 pb-4 last:border-0">
-                  <div className="flex items-start justify-between mb-2">
-                    <div className="flex items-center gap-2">
-                      <div className="w-8 h-8 bg-primary-100 text-primary-700 rounded-full flex items-center justify-center text-sm font-semibold">
-                        {review.customer?.full_name?.[0]?.toUpperCase() ?? 'U'}
-                      </div>
-                      <div>
-                        <p className="text-sm font-medium text-gray-900">
-                          {review.customer?.full_name ?? 'Client anonyme'}
-                        </p>
-                        <StarRating rating={review.rating} size="sm" />
-                      </div>
-                    </div>
-                    <span className="text-xs text-gray-400">
-                      {new Date(review.created_at).toLocaleDateString('fr-FR')}
-                    </span>
-                  </div>
-                  {review.title && <p className="text-sm font-medium text-gray-900 mb-1">{review.title}</p>}
-                  {review.body && <p className="text-sm text-gray-600">{review.body}</p>}
-                </div>
-              ))}
-            </div>
-          </>
-        ) : (
-          <div className="text-center py-8 text-gray-400">
-            <Star size={32} className="mx-auto mb-2 opacity-30" />
-            <p>Aucun avis pour ce produit</p>
-          </div>
-        )}
-      </div>
 
       {/* Related Products */}
       {relatedProducts && relatedProducts.length > 0 && (

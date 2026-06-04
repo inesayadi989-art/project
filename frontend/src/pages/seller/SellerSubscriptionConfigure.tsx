@@ -2,25 +2,9 @@ import { useMemo, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useSubscriptionPlans, useCreateSubscription } from '../../hooks/useSubscriptions';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
-import BackButton from '../../components/UI/BackButton';
 import toast from 'react-hot-toast';
 import { formatPrice } from '../../lib/types';
-import { CreditCard, Shield, Smartphone, CreditCardIcon } from 'lucide-react';
-
-const paymentMethods = [
-  {
-    id: 'd17',
-    label: 'D17 Mobile',
-    description: 'Paiement mobile tunisien via D17 pour les commerçants locaux.',
-    icon: Smartphone,
-  },
-  {
-    id: 'card',
-    label: 'Carte bancaire',
-    description: 'Paiement sécurisé par carte bancaire (Visa, MasterCard).',
-    icon: CreditCardIcon,
-  },
-];
+import { Shield, CreditCard } from 'lucide-react';
 
 export default function SellerSubscriptionConfigure() {
   const [searchParams] = useSearchParams();
@@ -28,7 +12,6 @@ export default function SellerSubscriptionConfigure() {
   const navigate = useNavigate();
   const { data: plans, isLoading: plansLoading } = useSubscriptionPlans();
   const createSubscription = useCreateSubscription();
-  const [paymentMethod, setPaymentMethod] = useState('d17');
   const [loading, setLoading] = useState(false);
 
   const plan = useMemo(() => {
@@ -48,34 +31,22 @@ export default function SellerSubscriptionConfigure() {
       toast.error('Aucun plan sélectionné.');
       return;
     }
-    if (!paymentMethod) {
-      toast.error('Veuillez choisir un mode de paiement.');
-      return;
-    }
 
     setLoading(true);
     try {
-      const response: any = await createSubscription.mutateAsync({ planId: Number(plan.id), paymentMethod });
+      const response: any = await createSubscription.mutateAsync({ planId: Number(plan.id) });
       console.log('createSubscription response', response);
       if (response.paymentUrl) {
         const url = new URL(response.paymentUrl, window.location.origin);
         if (url.pathname === '/payment/checkout') {
-          if (paymentMethod === 'd17') {
-            navigate(`/payment/d17?subscriptionId=${encodeURIComponent(response.subscriptionId)}`);
-          } else {
-            navigate(`/payment/card?subscriptionId=${encodeURIComponent(response.subscriptionId)}`);
-          }
+          navigate(`/payment/card?subscriptionId=${encodeURIComponent(response.subscriptionId)}`);
           return;
         }
         window.location.href = response.paymentUrl;
         return;
       }
       if (response.subscriptionId) {
-        if (paymentMethod === 'd17') {
-          navigate(`/payment/d17?subscriptionId=${encodeURIComponent(response.subscriptionId)}`);
-        } else {
-          navigate(`/payment/card?subscriptionId=${encodeURIComponent(response.subscriptionId)}`);
-        }
+        navigate(`/payment/card?subscriptionId=${encodeURIComponent(response.subscriptionId)}`);
         return;
       }
 
@@ -115,13 +86,11 @@ export default function SellerSubscriptionConfigure() {
   return (
     <div className="space-y-8 py-10 px-4 sm:px-6 lg:px-8">
       <div className="max-w-7xl mx-auto">
-        <BackButton to="/seller/subscription" />
-
         <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
           <div>
             <p className="text-sm font-semibold uppercase tracking-[0.24em] text-primary-600">Configurer votre forfait</p>
             <h1 className="mt-3 text-3xl font-bold text-gray-900">Finalisez votre abonnement Souk.tn</h1>
-            <p className="mt-2 text-gray-600 max-w-2xl">Choisissez un mode de paiement, puis confirmez votre abonnement avec un code OTP SMS.</p>
+            <p className="mt-2 text-gray-600 max-w-2xl">Paiement carte bancaire direct, sans code OTP.</p>
           </div>
           <div className="rounded-3xl border border-gray-200 bg-white p-5 shadow-sm w-full max-w-sm">
             <p className="text-sm text-gray-500">Forfait sélectionné</p>
@@ -139,44 +108,19 @@ export default function SellerSubscriptionConfigure() {
           <div className="space-y-6">
             <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
               <h2 className="text-xl font-semibold text-gray-900">Mode de paiement</h2>
-              <p className="mt-2 text-gray-600">Sélectionnez votre méthode de paiement. Vous recevrez un code OTP SMS pour confirmer votre abonnement.</p>
+              <p className="mt-2 text-gray-600">Payez directement par carte bancaire pour activer votre abonnement vendeur.</p>
 
-              <div className="mt-6 grid gap-4 sm:grid-cols-2">
-                {paymentMethods.map((method) => {
-                  const Icon = method.icon;
-                  return (
-                    <button
-                      key={method.id}
-                      onClick={() => setPaymentMethod(method.id)}
-                      className={`rounded-3xl border p-4 text-left transition ${
-                        paymentMethod === method.id
-                          ? 'border-primary-500 bg-primary-50'
-                          : 'border-gray-200 bg-white hover:border-gray-300'
-                      }`}
-                    >
-                      <div className="flex items-center gap-3">
-                        <Icon className="h-6 w-6 text-primary-600" />
-                        <div>
-                          <p className="font-semibold text-gray-900">{method.label}</p>
-                          <p className="mt-1 text-sm text-gray-500">{method.description}</p>
-                        </div>
-                      </div>
-                    </button>
-                  );
-                })}
+              <div className="mt-6 rounded-3xl border border-gray-200 bg-primary-50 p-4 text-gray-900">
+                Paiement sécurisé par carte bancaire (Visa, MasterCard).
               </div>
             </div>
 
             <div className="rounded-3xl border border-gray-200 bg-white p-6 shadow-sm">
               <div className="flex items-center gap-3 mb-3">
-                {paymentMethod === 'd17' ? (
-                  <><Smartphone className="h-6 w-6 text-primary-600" /><h2 className="text-xl font-semibold text-gray-900">Paiement D17</h2></>
-                ) : (
-                  <><CreditCardIcon className="h-6 w-6 text-primary-600" /><h2 className="text-xl font-semibold text-gray-900">Paiement par carte</h2></>
-                )}
+                <><CreditCard className="h-6 w-6 text-primary-600" /><h2 className="text-xl font-semibold text-gray-900">Paiement par carte</h2></>
               </div>
               <p className="text-gray-600">
-                Vous recevrez ensuite un code OTP par SMS pour confirmer votre abonnement. Ce flux simule un paiement sécurisé sans demander de PIN bancaire.
+                Un paiement sécurisé par carte bancaire est requis pour activer votre abonnement vendeur. Ce flux ne demande pas d OTP.
               </p>
             </div>
 

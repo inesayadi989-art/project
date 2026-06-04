@@ -1,6 +1,5 @@
 import { Link, useSearchParams } from 'react-router-dom';
 import { AlertTriangle } from 'lucide-react';
-import BackButton from '../components/UI/BackButton';
 
 export default function PaymentFailurePage() {
   const [searchParams] = useSearchParams();
@@ -9,7 +8,6 @@ export default function PaymentFailurePage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8">
       <div className="card p-8 text-center max-w-md">
-        <BackButton className="mb-4" />
         <AlertTriangle size={52} className="mx-auto mb-4 text-red-500" />
         <h1 className="text-2xl font-bold text-gray-900 mb-3">Paiement échoué</h1>
         <p className="text-gray-600 mb-6">{errorMessage}</p>

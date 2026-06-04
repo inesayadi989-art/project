@@ -2,7 +2,6 @@ import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { api } from '../lib/api';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
-import BackButton from '../components/UI/BackButton';
 import toast from 'react-hot-toast';
 import { CreditCard, Shield, ArrowLeft, Lock } from 'lucide-react';
 
@@ -108,7 +107,13 @@ export default function CardPaymentPage() {
       <div className="max-w-2xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <BackButton />
+          <button
+            onClick={() => navigate(-1)}
+            className="flex items-center gap-2 text-gray-600 hover:text-gray-900 mb-4"
+          >
+            <ArrowLeft className="h-4 w-4" />
+            Retour
+          </button>
           <div className="text-center">
             <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-100 rounded-full mb-4">
               <CreditCard className="h-8 w-8 text-blue-600" />
@@ -221,7 +226,7 @@ export default function CardPaymentPage() {
             <button
               onClick={handleConfirmPayment}
               disabled={loading || !cardNumber || !expiryDate || !cvv || !cardholderName}
-              className="w-full bg-orange-800 hover:bg-orange-900 disabled:bg-gray-300 text-white font-semibold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
+              className="w-full bg-blue-600 hover:bg-blue-700 disabled:bg-gray-300 text-white font-semibold py-4 px-6 rounded-xl transition-colors flex items-center justify-center gap-2"
             >
               {loading ? (
                 <>

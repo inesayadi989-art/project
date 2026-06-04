@@ -1,12 +1,11 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { Plus, CreditCard as Edit, Trash2, Eye, EyeOff, Package } from 'lucide-react';
 import { useAuthStore } from '../../store/authStore';
 import { useSellerStore, useSellerProducts, useCreateProduct, useUpdateProduct, useDeleteProduct } from '../../hooks/useProducts';
 import { useCategories } from '../../hooks/useProducts';
-import SellerLayout from './SellerLayout';
+// SellerLayout is provided by the route wrapper in App.tsx — do not double-wrap
 import Modal from '../../components/UI/Modal';
 import LoadingSpinner from '../../components/UI/LoadingSpinner';
-import BackButton from '../../components/UI/BackButton';
 import { formatPrice } from '../../lib/types';
 import { DEFAULT_PRODUCT_IMAGE } from '../../components/UI/ProductCard';
 import toast from 'react-hot-toast';
@@ -51,16 +50,26 @@ export default function SellerProducts() {
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [deletingProductId, setDeletingProductId] = useState<string | null>(null);
   const [form, setForm] = useState<ProductForm>(emptyForm);
+  const [previewUrls, setPreviewUrls] = useState<string[]>([]);
+  const [existingImageUrls, setExistingImageUrls] = useState<string[]>([]);
   const [saving, setSaving] = useState(false);
   const [deleting, setDeleting] = useState(false);
 
-  const openAdd = () => {
-    setEditingProduct(null);
+  const clearForm = () => {
     setForm(emptyForm);
+    previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    setPreviewUrls([]);
+    setExistingImageUrls([]);
+    setEditingProduct(null);
+  };
+
+  const openAdd = () => {
+    clearForm();
     setModalOpen(true);
   };
 
   const openEdit = (product: Product) => {
+    clearForm();
     setEditingProduct(product);
     setForm({
       name: product.name,
@@ -73,14 +82,36 @@ export default function SellerProducts() {
       imageFiles: [],
       isFeatured: product.is_featured,
     });
+    setExistingImageUrls(product.product_images?.map((img) => img.url) ?? []);
     setModalOpen(true);
   };
 
   const handleSave = async () => {
-    if (!store || !form.name || !form.price || !form.stockQty || !form.categoryId) {
-      toast.error('Veuillez remplir tous les champs obligatoires');
+    if (!store) {
+      toast.error('Impossible de trouver la boutique vendeur. Vérifiez votre connexion ou votre compte.');
       return;
     }
+
+    if (!form.name.trim()) {
+      toast.error('Veuillez saisir le nom du produit');
+      return;
+    }
+
+    if (!form.categoryId) {
+      toast.error('Veuillez sélectionner une catégorie');
+      return;
+    }
+
+    if (form.price.trim() === '') {
+      toast.error('Veuillez saisir le prix du produit');
+      return;
+    }
+
+    if (form.stockQty.trim() === '') {
+      toast.error('Veuillez saisir le stock disponible');
+      return;
+    }
+
     setSaving(true);
     try {
       const tags = form.tags
@@ -101,7 +132,7 @@ export default function SellerProducts() {
           categoryId: form.categoryId,
           price: parseFloat(form.price),
           compare_price: form.comparePrice ? parseFloat(form.comparePrice) : null,
-          stock_qty: parseInt(form.stockQty),
+          stock: parseInt(form.stockQty),
           tags,
           is_featured: form.isFeatured,
           images: form.imageFiles,
@@ -116,7 +147,7 @@ export default function SellerProducts() {
           description: form.description,
           price: parseFloat(form.price),
           compare_price: form.comparePrice ? parseFloat(form.comparePrice) : null,
-          stock_qty: parseInt(form.stockQty),
+          stock: parseInt(form.stockQty),
           tags,
           is_featured: form.isFeatured,
           images: form.imageFiles,
@@ -124,6 +155,7 @@ export default function SellerProducts() {
         toast.success('Produit créé avec succès');
       }
       setModalOpen(false);
+      clearForm();
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Erreur lors de la sauvegarde';
       toast.error(errorMessage);
@@ -158,6 +190,12 @@ export default function SellerProducts() {
     }
   };
 
+  useEffect(() => {
+    return () => {
+      previewUrls.forEach((previewUrl) => URL.revokeObjectURL(previewUrl));
+    };
+  }, [previewUrls]);
+
   const getStockBadge = (qty: number) => {
     if (qty === 0) return <span className="px-2 py-0.5 text-xs rounded-full bg-red-100 text-red-700">Rupture</span>;
     if (qty <= 5) return <span className="px-2 py-0.5 text-xs rounded-full bg-yellow-100 text-yellow-700">{qty} restants</span>;
@@ -165,13 +203,9 @@ export default function SellerProducts() {
   };
 
   return (
-    <SellerLayout>
-      <div className="space-y-6">
+    <div className="space-y-6">
         <div className="flex items-center justify-between">
-          <div>
-            <BackButton className="mb-2" />
-            <h1 className="text-2xl font-bold text-gray-900">Mes produits</h1>
-          </div>
+          <h1 className="text-2xl font-bold text-gray-900">Mes produits</h1>
           <button onClick={openAdd} className="btn-primary">
             <Plus size={16} /> Ajouter un produit
           </button>
@@ -215,7 +249,7 @@ export default function SellerProducts() {
                             />
                             <div>
                               <p className="text-sm font-medium text-gray-900 line-clamp-1">{product.name}</p>
-                              <p className="text-xs text-gray-400">{product.sold_count} vendus</p>
+                              <p className="text-xs text-gray-400">{product.sold_count === 0 ? 'Aucune vente' : `${product.sold_count} vendus`}</p>
                             </div>
                           </div>
                         </td>
@@ -244,7 +278,6 @@ export default function SellerProducts() {
             </div>
           </div>
         )}
-      </div>
 
       {/* Add/Edit Modal */}
       <Modal
@@ -295,12 +328,32 @@ export default function SellerProducts() {
               type="file"
               accept="image/*"
               multiple
-              onChange={(e) => setForm({ ...form, imageFiles: Array.from(e.target.files ?? []) })}
+              onChange={(e) => {
+                const files = Array.from(e.target.files ?? []);
+                setForm({ ...form, imageFiles: files });
+                previewUrls.forEach((url) => URL.revokeObjectURL(url));
+                setPreviewUrls(files.map((file) => URL.createObjectURL(file)));
+                setExistingImageUrls([]);
+              }}
               className="input-field"
             />
             <p className="text-xs text-gray-500 mt-1">Choisissez un ou plusieurs fichiers image. Laisser vide pour conserver les images existantes.</p>
             {form.imageFiles.length > 0 && (
               <p className="text-xs text-gray-500 mt-2">Fichiers sélectionnés: {form.imageFiles.map((file) => file.name).join(', ')}</p>
+            )}
+            {(previewUrls.length > 0 || existingImageUrls.length > 0) && (
+              <div className="grid grid-cols-3 gap-3 mt-4">
+                {previewUrls.map((url, index) => (
+                  <div key={`preview-${index}`} className="h-24 rounded-lg overflow-hidden border border-gray-200 bg-white">
+                    <img src={url} alt={`Aperçu ${index + 1}`} className="w-full h-full object-cover" />
+                  </div>
+                ))}
+                {previewUrls.length === 0 && existingImageUrls.map((url, index) => (
+                  <div key={`existing-${index}`} className="h-24 rounded-lg overflow-hidden border border-gray-200 bg-white">
+                    <img src={url} alt={`Image existante ${index + 1}`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = DEFAULT_PRODUCT_IMAGE; }} />
+                  </div>
+                ))}
+              </div>
             )}
           </div>
           <label className="flex items-center gap-2 cursor-pointer">
@@ -328,6 +381,6 @@ export default function SellerProducts() {
           </div>
         </div>
       </Modal>
-    </SellerLayout>
+    </div>
   );
 }

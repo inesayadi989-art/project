@@ -3,7 +3,6 @@ import { useNavigate } from 'react-router-dom';
 import { Check, Star } from 'lucide-react';
 import { useAuthStore } from '../store/authStore';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
-import BackButton from '../components/UI/BackButton';
 import { useSubscriptionPlans, useCreateSubscription } from '../hooks/useSubscriptions';
 import toast from 'react-hot-toast';
 
@@ -47,8 +46,6 @@ export default function SubscriptionPlansPage() {
   return (
     <div className="min-h-screen bg-gray-50 py-12">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <BackButton className="mb-4" />
-
         {/* Header */}
         <div className="text-center mb-12">
           <h1 className="text-3xl md:text-4xl font-bold text-gray-900 mb-4">

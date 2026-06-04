@@ -1,10 +1,9 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { SlidersHorizontal, X, Star, ChevronLeft, ChevronRight } from 'lucide-react';
+import { SlidersHorizontal, X, ChevronLeft, ChevronRight } from 'lucide-react';
 import { useProducts, useCategories } from '../hooks/useProducts';
 import ProductCard from '../components/UI/ProductCard';
 import LoadingSpinner from '../components/UI/LoadingSpinner';
-import BackButton from '../components/UI/BackButton';
 
 const PAGE_SIZE = 20;
 
@@ -14,13 +13,16 @@ export default function ShopPage() {
 
   const categoryId = searchParams.get('category') ?? undefined;
   const search = searchParams.get('search') ?? undefined;
-  const minPrice = searchParams.get('minPrice') !== null ? Number(searchParams.get('minPrice')) : undefined;
-  const maxPrice = searchParams.get('maxPrice') !== null ? Number(searchParams.get('maxPrice')) : undefined;
+  const rawMinPrice = searchParams.get('minPrice');
+  const rawMaxPrice = searchParams.get('maxPrice');
+  const minPrice = rawMinPrice && !Number.isNaN(Number(rawMinPrice)) ? Number(rawMinPrice) : undefined;
+  const maxPrice = rawMaxPrice && !Number.isNaN(Number(rawMaxPrice)) ? Number(rawMaxPrice) : undefined;
   const sortBy = searchParams.get('sort') ?? 'newest';
   const page = Number(searchParams.get('page') ?? 1);
 
   const [localMinPrice, setLocalMinPrice] = useState(minPrice?.toString() ?? '');
   const [localMaxPrice, setLocalMaxPrice] = useState(maxPrice?.toString() ?? '');
+  const [priceError, setPriceError] = useState('');
 
   const { data: categories } = useCategories();
   const { data, isLoading } = useProducts({
@@ -33,16 +35,8 @@ export default function ShopPage() {
     pageSize: PAGE_SIZE,
   });
 
-  const fetchedProducts = data?.products ?? [];
-  const products = fetchedProducts.filter((product) => {
-    const price = Number(product.price);
-    if (!Number.isFinite(price)) return true;
-    if (minPrice !== undefined && price < minPrice) return false;
-    if (maxPrice !== undefined && price > maxPrice) return false;
-    return true;
-  });
-
-  const totalCount = products.length;
+  const products = data?.products ?? [];
+  const totalCount = data?.count ?? 0;
   const totalPages = Math.ceil(totalCount / PAGE_SIZE);
 
   const updateParam = (key: string, value: string | undefined) => {
@@ -58,9 +52,29 @@ export default function ShopPage() {
 
   const handlePriceFilter = () => {
     const params = new URLSearchParams(searchParams);
-    if (localMinPrice) params.set('minPrice', localMinPrice);
+    const minValue = localMinPrice.trim() === '' ? undefined : Number(localMinPrice);
+    const maxValue = localMaxPrice.trim() === '' ? undefined : Number(localMaxPrice);
+
+    if (localMinPrice.trim() !== '' && Number.isNaN(minValue)) {
+      setPriceError('Veuillez saisir un prix minimum valide.');
+      return;
+    }
+
+    if (localMaxPrice.trim() !== '' && Number.isNaN(maxValue)) {
+      setPriceError('Veuillez saisir un prix maximum valide.');
+      return;
+    }
+
+    if (minValue !== undefined && maxValue !== undefined && minValue > maxValue) {
+      setPriceError('Le prix minimum doit être inférieur ou égal au prix maximum.');
+      return;
+    }
+
+    setPriceError('');
+
+    if (minValue !== undefined) params.set('minPrice', String(minValue));
     else params.delete('minPrice');
-    if (localMaxPrice) params.set('maxPrice', localMaxPrice);
+    if (maxValue !== undefined) params.set('maxPrice', String(maxValue));
     else params.delete('maxPrice');
     params.delete('page');
     setSearchParams(params);
@@ -70,12 +84,15 @@ export default function ShopPage() {
     setSearchParams({});
     setLocalMinPrice('');
     setLocalMaxPrice('');
+    setPriceError('');
   };
 
   useEffect(() => {
     setLocalMinPrice(minPrice?.toString() ?? '');
     setLocalMaxPrice(maxPrice?.toString() ?? '');
   }, [minPrice, maxPrice]);
+
+  const filteredProducts = products;
 
   const FiltersContent = () => (
     <div className="space-y-6">
@@ -112,21 +129,34 @@ export default function ShopPage() {
         <div className="flex gap-2 items-center">
           <input
             type="number"
+            inputMode="numeric"
+            min="0"
+            step="1"
             value={localMinPrice}
-            onChange={(e) => setLocalMinPrice(e.target.value)}
+            onChange={(e) => {
+              setLocalMinPrice(e.target.value);
+              setPriceError('');
+            }}
             placeholder="Min"
-            className="input-field w-24 text-xs"
+            className="input-field w-full text-xs"
           />
           <span className="text-gray-400">—</span>
           <input
             type="number"
+            inputMode="numeric"
+            min="0"
+            step="1"
             value={localMaxPrice}
-            onChange={(e) => setLocalMaxPrice(e.target.value)}
+            onChange={(e) => {
+              setLocalMaxPrice(e.target.value);
+              setPriceError('');
+            }}
             placeholder="Max"
-            className="input-field w-24 text-xs"
+            className="input-field w-full text-xs"
           />
         </div>
-        <button type="button" onClick={handlePriceFilter} className="mt-2 btn-secondary text-xs w-full">
+        {priceError && <p className="mt-2 text-xs text-red-600">{priceError}</p>}
+        <button onClick={handlePriceFilter} className="mt-2 btn-secondary text-xs w-full">
           Appliquer
         </button>
       </div>
@@ -139,8 +169,6 @@ export default function ShopPage() {
 
   return (
     <div className="max-w-7xl mx-auto px-4 py-6">
-      <BackButton to="/" />
-
       {search && (
         <div className="mb-4 flex items-center gap-2">
           <span className="text-sm text-gray-500">Résultats pour :</span>
@@ -182,8 +210,6 @@ export default function ShopPage() {
                 <option value="newest">Plus récents</option>
                 <option value="price_asc">Prix croissant</option>
                 <option value="price_desc">Prix décroissant</option>
-                <option value="popular">Plus vendus</option>
-                <option value="rating">Mieux notés</option>
               </select>
             </div>
           </div>
@@ -192,7 +218,7 @@ export default function ShopPage() {
             <div className="flex justify-center py-16">
               <LoadingSpinner size="lg" message="Chargement des produits..." />
             </div>
-          ) : products.length === 0 ? (
+          ) : filteredProducts.length === 0 ? (
             <div className="text-center py-16 text-gray-400">
               <SlidersHorizontal size={48} className="mx-auto mb-3 opacity-40" />
               <p className="font-medium text-gray-600">Aucun produit trouvé</p>
@@ -204,7 +230,7 @@ export default function ShopPage() {
           ) : (
             <>
               <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-                {products.map((product) => (
+                {filteredProducts.map((product) => (
                   <ProductCard key={product.id} product={product} />
                 ))}
               </div>
