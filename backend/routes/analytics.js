@@ -1,7 +1,7 @@
 /**
  * Analytics/BI Endpoint
  * 
- * لعرض تقارير الـ BI والتحقق من صحة البيانات المالية
+ * 
  */
 
 const express = require('express');

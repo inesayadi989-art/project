@@ -1,5 +1,43 @@
-// API client to replace Supabase
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+
+// API Endpoints Constants
+const ENDPOINTS = {
+  // Auth
+  REGISTER: 'auth/register',
+  LOGIN: 'auth/login',
+  PROFILE: 'auth/profile',
+  PASSWORD: 'auth/password',
+  
+  // Products
+  PRODUCTS: 'products',
+  PRODUCTS_ASSISTANT: 'products/assistant',
+  PRODUCTS_STORES_LIST: 'products/stores/list',
+  PRODUCTS_CATEGORIES_LIST: 'products/categories/list',
+  
+  // Orders
+  ORDERS: 'orders',
+  ORDERS_SELLER: 'orders/seller/orders',
+  
+  // Admin
+  ADMIN_STATS: 'admin/stats',
+  ADMIN_USERS: 'admin/users',
+  ADMIN_STORES: 'admin/stores',
+  ADMIN_VENDOR_PAYOUTS: 'admin/vendor-payouts',
+  ADMIN_VENDOR_SETTLEMENTS: 'admin/vendor-settlements',
+  ADMIN_PRODUCTS: 'admin/products',
+  ADMIN_ORDERS: 'admin/orders',
+  
+  // Payments
+  PAYMENTS_CREATE: 'payments/create-payment',
+  PAYMENTS_VERIFY: 'payments/verify',
+  
+  // Subscriptions
+  SUBSCRIPTIONS_PLANS: 'subscriptions/plans',
+  SUBSCRIPTIONS_CURRENT: 'subscriptions/current',
+  SUBSCRIPTIONS_NOTIFICATIONS: 'subscriptions/notifications',
+  SUBSCRIPTIONS_REQUEST: 'subscriptions/request',
+  SUBSCRIPTIONS_CREATE: 'subscriptions/create',
+};
 
 class ApiClient {
   constructor() {
@@ -61,7 +99,7 @@ class ApiClient {
 
   // Auth methods
   async signUp(email, password, fullName, role = 'customer') {
-    const response = await this.request('/auth/register', {
+    const response = await this.request(`/${ENDPOINTS.REGISTER}`, {
       method: 'POST',
       body: JSON.stringify({ email, password, fullName, role }),
     });
@@ -72,7 +110,7 @@ class ApiClient {
   }
 
   async signIn(email, password) {
-    const response = await this.request('/auth/login', {
+    const response = await this.request(`/${ENDPOINTS.LOGIN}`, {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
@@ -88,18 +126,18 @@ class ApiClient {
   }
 
   async getProfile() {
-    return this.request('/auth/profile');
+    return this.request(`/${ENDPOINTS.PROFILE}`);
   }
 
   async updateProfile(updates) {
-    return this.request('/auth/profile', {
+    return this.request(`/${ENDPOINTS.PROFILE}`, {
       method: 'PUT',
       body: JSON.stringify(updates),
     });
   }
 
   async updatePassword(currentPassword, newPassword) {
-    return this.request('/auth/password', {
+    return this.request(`/${ENDPOINTS.PASSWORD}`, {
       method: 'PUT',
       body: JSON.stringify({ currentPassword, newPassword }),
     });
@@ -108,24 +146,24 @@ class ApiClient {
   // Product methods
   async getProducts(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.request(`/products?${queryString}`);
+    return this.request(`/${ENDPOINTS.PRODUCTS}?${queryString}`);
   }
 
   async getAssistantProducts(query) {
     const queryString = new URLSearchParams({ query }).toString();
-    return this.request(`/products/assistant?${queryString}`);
+    return this.request(`/${ENDPOINTS.PRODUCTS_ASSISTANT}?${queryString}`);
   }
 
   async getProduct(id) {
-    return this.request(`/products/${id}`);
+    return this.request(`/${ENDPOINTS.PRODUCTS}/${id}`);
   }
 
   async getStores() {
-    return this.request('/products/stores/list');
+    return this.request(`/${ENDPOINTS.PRODUCTS_STORES_LIST}`);
   }
 
   async getCategories() {
-    return this.request('/products/categories/list');
+    return this.request(`/${ENDPOINTS.PRODUCTS_CATEGORIES_LIST}`);
   }
 
   async getSellerStore(sellerId) {
@@ -144,21 +182,21 @@ class ApiClient {
   }
 
   async createProduct(productData) {
-    return this.request('/products', {
+    return this.request(`/${ENDPOINTS.PRODUCTS}`, {
       method: 'POST',
       body: productData,
     });
   }
 
   async updateProduct(id, updates) {
-    return this.request(`/products/${id}`, {
+    return this.request(`/${ENDPOINTS.PRODUCTS}/${id}`, {
       method: 'PUT',
       body: updates,
     });
   }
 
   async deleteProduct(id) {
-    return this.request(`/products/${id}`, {
+    return this.request(`/${ENDPOINTS.PRODUCTS}/${id}`, {
       method: 'DELETE',
     });
   }
@@ -192,43 +230,43 @@ class ApiClient {
 
   // Order methods
   async getOrders() {
-    return this.request('/orders');
+    return this.request(`/${ENDPOINTS.ORDERS}`);
   }
 
   async getOrder(id) {
-    return this.request(`/orders/${id}`);
+    return this.request(`/${ENDPOINTS.ORDERS}/${id}`);
   }
 
   async createOrder(orderData) {
-    return this.request('/orders', {
+    return this.request(`/${ENDPOINTS.ORDERS}`, {
       method: 'POST',
       body: JSON.stringify(orderData),
     });
   }
 
   async updateOrderStatus(id, status) {
-    return this.request(`/orders/${id}/status`, {
+    return this.request(`/${ENDPOINTS.ORDERS}/${id}/status`, {
       method: 'PUT',
       body: JSON.stringify({ status }),
     });
   }
 
   async getSellerOrders() {
-    return this.request('/orders/seller/orders');
+    return this.request(`/${ENDPOINTS.ORDERS_SELLER}`);
   }
 
   // Admin methods
   async getAdminStats() {
-    return this.request('/admin/stats');
+    return this.request(`/${ENDPOINTS.ADMIN_STATS}`);
   }
 
   async getAdminUsers(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.request(`/admin/users?${queryString}`);
+    return this.request(`/${ENDPOINTS.ADMIN_USERS}?${queryString}`);
   }
 
   async banUser(userId, banned) {
-    return this.request(`/admin/users/${userId}/ban`, {
+    return this.request(`/${ENDPOINTS.ADMIN_USERS}/${userId}/ban`, {
       method: 'PUT',
       body: JSON.stringify({ banned }),
     });
@@ -236,25 +274,25 @@ class ApiClient {
 
   async getAdminStores(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.request(`/admin/stores?${queryString}`);
+    return this.request(`/${ENDPOINTS.ADMIN_STORES}?${queryString}`);
   }
 
   async getAdminVendorPayouts(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.request(`/admin/vendor-payouts?${queryString}`);
+    return this.request(`/${ENDPOINTS.ADMIN_VENDOR_PAYOUTS}?${queryString}`);
   }
 
   async getAdminVendorSettlements(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.request(`/admin/vendor-settlements?${queryString}`);
+    return this.request(`/${ENDPOINTS.ADMIN_VENDOR_SETTLEMENTS}?${queryString}`);
   }
 
   async markStorePaid(storeId: string | number, note?: string) {
-    return this.request(`/admin/stores/${storeId}/mark-paid`, { method: 'POST', body: JSON.stringify({ note }) });
+    return this.request(`/${ENDPOINTS.ADMIN_STORES}/${storeId}/mark-paid`, { method: 'POST', body: JSON.stringify({ note }) });
   }
 
   async approveStore(storeId, approved) {
-    return this.request(`/admin/stores/${storeId}/approve`, {
+    return this.request(`/${ENDPOINTS.ADMIN_STORES}/${storeId}/approve`, {
       method: 'PUT',
       body: JSON.stringify({ approved }),
     });
@@ -262,57 +300,50 @@ class ApiClient {
 
   async getAdminProducts(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.request(`/admin/products?${queryString}`);
-  }
-
-  async approveProduct(productId, approved) {
-    return this.request(`/admin/products/${productId}/approve`, {
-      method: 'PUT',
-      body: JSON.stringify({ approved }),
-    });
+    return this.request(`/${ENDPOINTS.ADMIN_PRODUCTS}?${queryString}`);
   }
 
   async getAdminOrders(params = {}) {
     const queryString = new URLSearchParams(params).toString();
-    return this.request(`/admin/orders?${queryString}`);
+    return this.request(`/${ENDPOINTS.ADMIN_ORDERS}?${queryString}`);
   }
 
   // Payment methods (Konnect)
   async createPaymentSession(paymentPayload) {
-    return this.request('/payments/create-payment', {
+    return this.request(`/${ENDPOINTS.PAYMENTS_CREATE}`, {
       method: 'POST',
       body: JSON.stringify(paymentPayload),
     });
   }
 
   async verifyPayment(paymentId) {
-    return this.request(`/payments/verify/${paymentId}`);
+    return this.request(`/${ENDPOINTS.PAYMENTS_VERIFY}/${paymentId}`);
   }
 
   async getPaymentStatus(paymentId) {
-    return this.request(`/payments/verify/${paymentId}`);
+    return this.request(`/${ENDPOINTS.PAYMENTS_VERIFY}/${paymentId}`);
   }
 
   async getSubscriptionPlans() {
-    return this.request('/subscriptions/plans');
+    return this.request(`/${ENDPOINTS.SUBSCRIPTIONS_PLANS}`);
   }
 
   async getSellerSubscription() {
-    return this.request('/subscriptions/current');
+    return this.request(`/${ENDPOINTS.SUBSCRIPTIONS_CURRENT}`);
   }
 
   async getSubscriptionNotifications() {
-    return this.request('/subscriptions/notifications');
+    return this.request(`/${ENDPOINTS.SUBSCRIPTIONS_NOTIFICATIONS}`);
   }
 
   async markSubscriptionNotificationRead(notificationId: string | number) {
-    return this.request(`/subscriptions/notifications/${notificationId}/read`, {
+    return this.request(`/${ENDPOINTS.SUBSCRIPTIONS_NOTIFICATIONS}/${notificationId}/read`, {
       method: 'POST',
     });
   }
 
   async requestSellerSubscription(comment?: string) {
-    return this.request('/subscriptions/request', {
+    return this.request(`/${ENDPOINTS.SUBSCRIPTIONS_REQUEST}`, {
       method: 'POST',
       body: JSON.stringify({ comment }),
     });
@@ -333,7 +364,7 @@ class ApiClient {
   }
 
   async createSubscription(planId: number, paymentMethod = 'card') {
-    return this.request('/subscriptions/create', {
+    return this.request(`/${ENDPOINTS.SUBSCRIPTIONS_CREATE}`, {
       method: 'POST',
       body: JSON.stringify({ planId, paymentMethod }),
     });

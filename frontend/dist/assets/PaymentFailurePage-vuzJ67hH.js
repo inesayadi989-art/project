@@ -1,6 +1,0 @@
-import{c as r,l as c,j as e,L as a}from"./index-ukhHg3kL.js";/**
- * @license lucide-react v1.14.0 - ISC
- *
- * This source code is licensed under the ISC license.
- * See the LICENSE file in the root directory of this source tree.
- */const n=[["path",{d:"m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3",key:"wmoenq"}],["path",{d:"M12 9v4",key:"juzpu7"}],["path",{d:"M12 17h.01",key:"p32p05"}]],l=r("triangle-alert",n);function m(){const[s]=c(),t=s.get("errorMessage")||"Le paiement a échoué. Veuillez réessayer.";return e.jsx("div",{className:"min-h-screen flex items-center justify-center bg-gray-50 px-4 py-8",children:e.jsxs("div",{className:"card p-8 text-center max-w-md",children:[e.jsx(l,{size:52,className:"mx-auto mb-4 text-red-500"}),e.jsx("h1",{className:"text-2xl font-bold text-gray-900 mb-3",children:"Paiement échoué"}),e.jsx("p",{className:"text-gray-600 mb-6",children:t}),e.jsxs("div",{className:"flex gap-3",children:[e.jsx(a,{to:"/checkout",className:"flex-1 btn-primary justify-center",children:"Réessayer le paiement"}),e.jsx(a,{to:"/",className:"flex-1 btn-secondary justify-center",children:"Retour à l'accueil"})]})]})})}export{m as default};

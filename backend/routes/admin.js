@@ -1,40 +1,9 @@
 const express = require('express');
 const FinancialService = require('../services/FinancialService');
+const { authenticateAdmin } = require('../middleware/auth');
+const { buildImageUrl } = require('../helpers/formatting');
 
 const router = express.Router();
-
-const buildImageUrl = (req, imagePath) => {
-  if (!imagePath) return imagePath;
-  if (imagePath.startsWith('http://') || imagePath.startsWith('https://')) {
-    return imagePath;
-  }
-  const baseUrl = `${req.protocol}://${req.get('host')}`;
-  return `${baseUrl}${imagePath.startsWith('/') ? imagePath : `/${imagePath}`}`;
-};
-
-// Middleware to verify JWT and admin role
-const authenticateAdmin = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
-
-  const jwt = require('jsonwebtoken');
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid token' });
-    }
-
-    if (user.role !== 'admin') {
-      return res.status(403).json({ error: 'Admin access required' });
-    }
-
-    req.user = user;
-    next();
-  });
-};
 
 // Get dashboard stats
 router.get('/stats', authenticateAdmin, async (req, res) => {
@@ -272,7 +241,7 @@ router.get('/vendor-payouts', authenticateAdmin, async (req, res) => {
       `SELECT s.id, s.name, s.slug, s.wallet_balance, s.threshold_notified, p.full_name, p.email, p.phone
        FROM stores s
        LEFT JOIN profiles p ON s.owner_id = p.id
-       WHERE s.wallet_balance >= 500
+       WHERE s.wallet_balance >= 1000
        ORDER BY s.wallet_balance DESC
        LIMIT ? OFFSET ?`,
       [parseInt(limit), offset]
@@ -340,63 +309,32 @@ router.put('/stores/:id/approve', authenticateAdmin, async (req, res) => {
   }
 });
 
-// Get all products
+// Get all products (read-only list)
 router.get('/products', authenticateAdmin, async (req, res) => {
   try {
     const db = req.db;
-    const { page = 1, limit = 20, approved } = req.query;
+    const { page = 1, limit = 20 } = req.query;
 
     const offset = (page - 1) * limit;
-    let query = `
-      SELECT p.*, s.name as store_name, c.name as category_name,
+    const query = `
+      SELECT p.id, p.name, p.price, p.stock, p.is_active, p.created_at,
+             s.name as store_name, c.name as category_name,
              (SELECT image_url FROM product_images WHERE product_id = p.id ORDER BY sort_order ASC LIMIT 1) as primary_image
       FROM products p
       LEFT JOIN stores s ON p.store_id = s.id
       LEFT JOIN categories c ON p.category_id = c.id
-      WHERE 1=1
+      ORDER BY p.created_at DESC LIMIT ? OFFSET ?
     `;
 
-    const params = [];
-
-    if (approved !== undefined) {
-      query += ' AND p.is_approved = ?';
-      params.push(approved === 'true' ? 1 : 0);
-    }
-
-    query += ' ORDER BY p.created_at DESC LIMIT ? OFFSET ?';
-    params.push(parseInt(limit), offset);
-
-    const [products] = await db.execute(query, params);
-
-    const normalizedProducts = products.map((product) => ({
-      ...product,
-      primary_image: buildImageUrl(req, product.primary_image),
+    const [products] = await db.execute(query, [parseInt(limit), offset]);
+    const normalizedProducts = products.map(p => ({
+      ...p,
+      primary_image: buildImageUrl(req, p.primary_image),
     }));
 
     res.json({ products: normalizedProducts, page: parseInt(page), limit: parseInt(limit) });
-
   } catch (error) {
     console.error('Get products error:', error);
-    res.status(500).json({ error: 'Internal server error' });
-  }
-});
-
-// Approve/reject product
-router.put('/products/:id/approve', authenticateAdmin, async (req, res) => {
-  try {
-    const { id } = req.params;
-    const { approved } = req.body;
-    const db = req.db;
-
-    await db.execute(
-      'UPDATE products SET is_approved = ?, updated_at = NOW() WHERE id = ?',
-      [approved ? 1 : 0, id]
-    );
-
-    res.json({ message: `Product ${approved ? 'approved' : 'rejected'} successfully` });
-
-  } catch (error) {
-    console.error('Approve product error:', error);
     res.status(500).json({ error: 'Internal server error' });
   }
 });

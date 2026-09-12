@@ -49,62 +49,67 @@ async function seedFullData() {
     );
     console.log('✅ Store created for seller (ID: ' + storeResult.insertId + ')');
 
-    // 4. Get subscription plan
-    const [plans] = await db.execute(
-      `SELECT id FROM subscription_plans WHERE slug = 'single-plan' LIMIT 1`
-    );
-    const planId = plans.length > 0 ? plans[0].id : 1;
-
-    // 5. Create active subscription for seller
+    // 4. Create active subscription for seller
     const now = new Date();
-    const nextMonth = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
-    
+    const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
     const [subResult] = await db.execute(
-      `INSERT INTO subscriptions 
-       (user_id, plan_id, status, current_period_start, current_period_end, created_at, updated_at) 
-       VALUES (?, ?, ?, NOW(), ?, NOW(), NOW())`,
-      [sellerResult.insertId, planId, 'active', nextMonth]
+      `INSERT INTO seller_subscriptions (seller_id, plan_name, plan_price, amount, status, payment_status, start_date, end_date, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, NOW(), NOW())`,
+      [sellerResult.insertId, 'Souk Business', 30, 30, 'active', 'paid', endDate.toISOString().split('T')[0]]
     );
-    console.log('✅ Active subscription created (ID: ' + subResult.insertId + ')');
+    console.log('✅ Active subscription created for seller (ID: ' + subResult.insertId + ')');
 
-    // 6. Add some products for seller - Realistic small business products
+    // 5. Add sample products
+    const [categoryResult] = await db.execute(
+      'SELECT id FROM categories WHERE slug = ? LIMIT 1',
+      ['electronique']
+    );
+    const categoryId = categoryResult.length > 0 ? categoryResult[0].id : 1;
+
     const products = [
-      { name: 'Écouteurs Bluetooth', price: 89.99, category: 1, image: 'https://source.unsplash.com/featured/?wireless-earbuds' },
-      { name: 'Pull Femme Hiver', price: 59.99, category: 2, image: 'https://source.unsplash.com/featured/?woman-sweater' },
-      { name: 'Lampe Artisanale', price: 79.99, category: 3, image: 'https://source.unsplash.com/featured/?ceramic-lamp' },
-      { name: 'Crème Visage Bio', price: 54.99, category: 4, image: 'https://source.unsplash.com/featured/?skincare' },
-      { name: 'Huile d\'Olive Bio', price: 39.99, category: 5, image: 'https://source.unsplash.com/featured/?olive-oil' },
+      {
+        name: 'Écouteurs Bluetooth Premium',
+        description: 'Écouteurs sans fil de haute qualité',
+        price: 89.99,
+        stock: 25
+      },
+      {
+        name: 'Clavier Gaming RGB',
+        description: 'Clavier mécanique avec éclairage RGB',
+        price: 129.99,
+        stock: 30
+      },
+      {
+        name: 'Support Téléphone Ajustable',
+        description: 'Support universel pour téléphone',
+        price: 24.99,
+        stock: 50
+      },
+      {
+        name: 'Câble USB-C 2m',
+        description: 'Câble de charge rapide',
+        price: 14.99,
+        stock: 100
+      },
+      {
+        name: 'Souris Gaming Ergonomique',
+        description: 'Souris avec capteur haute précision',
+        price: 49.99,
+        stock: 40
+      }
     ];
 
     for (const product of products) {
-      const [productResult] = await db.execute(
-        `INSERT INTO products 
-         (store_id, category_id, name, slug, description, price, stock, is_approved, is_active, created_at) 
+      const slug = product.name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/^-|-$/g, '');
+      await db.execute(
+        `INSERT INTO products (store_id, category_id, name, slug, description, price, stock, is_approved, is_active, created_at)
          VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, NOW())`,
-        [
-          storeResult.insertId,
-          product.category,
-          product.name,
-          product.name.toLowerCase().replace(/\s+/g, '-'),
-          `${product.name} - Produit authentique de petite boutique tunisienne`,
-          product.price,
-          100,
-          true,
-          true
-        ]
+        [storeResult.insertId, categoryId, product.name, slug, product.description, product.price, product.stock, true, true]
       );
-      
-      // Insert product image
-      if (product.image) {
-        await db.execute(
-          `INSERT INTO product_images (product_id, image_url, sort_order) VALUES (?, ?, ?)`,
-          [productResult.insertId, product.image, 1]
-        );
-      }
     }
-    console.log('✅ Products added for seller');
+    console.log('✅ 5 sample products added');
 
-    // 7. Create customer user
+    // 6. Create customer user
     const [customerResult] = await db.execute(
       `INSERT INTO profiles (email, full_name, role, password_hash, phone, created_at, updated_at) 
        VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,

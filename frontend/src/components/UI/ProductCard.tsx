@@ -16,7 +16,7 @@ interface ProductCardProps {
 
 export default function ProductCard({ product }: ProductCardProps) {
   const { addItem } = useCartStore();
-  const { user, profile, isClientMode } = useAuthStore();
+  const { user, profile } = useAuthStore();
 
   const primaryImage =
     product.product_images?.find((img) => img.is_primary) ??
@@ -31,11 +31,9 @@ export default function ProductCard({ product }: ProductCardProps) {
       toast.error('Connectez-vous pour ajouter au panier');
       return;
     }
-    // Only customers or sellers in client mode can add to cart
-    if (profile?.role !== 'customer' && !(profile?.role === 'seller' && isClientMode)) {
-      if (profile?.role === 'seller') {
-        toast.error('Activez le mode client pour ajouter au panier');
-      }
+    // Only customers can add to cart
+    if (profile?.role !== 'customer') {
+      toast.error('Seuls les clients peuvent ajouter au panier');
       return;
     }
     if (product.stock_qty === 0) return;

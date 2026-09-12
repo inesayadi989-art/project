@@ -1,14 +1,6 @@
 /**
  * FinancialService
- * 
- * مسؤول عن كل العمليات المالية
- * - حساب العمولات
- * - تحديث المحافظ
- * - تسجيل المعاملات
- * - التحقق من الحسابات
- * 
- * ✅ كل شيء يجب أن يمر عبر هذه الخدمة
- * ❌ لا Frontend يحسب الفلوس
+ *
  */
 
 class FinancialService {
@@ -19,7 +11,7 @@ class FinancialService {
 
   /**
    * Create financial transaction (source of truth)
-   * كل عملية مالية لازم تتسجل هنا
+   
    */
   async recordTransaction(transactionData, connection = null) {
     const dbClient = connection || this.db;
@@ -82,7 +74,7 @@ class FinancialService {
 
   /**
    * Process order payment with transaction
-   * تعالج الدفع بشكل آمن مع ACID transactions
+  * ACID transactions
    */
   async processOrderPayment(order, commissionRate = this.COMMISSION_RATE, connection = null, paymentId = null) {
     const connectionOwner = !connection;
@@ -203,7 +195,7 @@ class FinancialService {
 
   /**
    * Verify order payment correctness
-   * التحقق من أن كل شيء صحيح
+   * 
    */
   async verifyOrderPayment(connection, orderId) {
     const dbClient = connection || this.db;
@@ -237,7 +229,7 @@ class FinancialService {
 
   /**
    * Process vendor payout (cash payment)
-   * معالجة صرف النقد للبائع
+   *
    */
   async processVendorPayout(storeId, adminId, note = null, connection = null) {
     const connectionOwner = !connection;
@@ -312,7 +304,6 @@ class FinancialService {
 
   /**
    * Audit log
-   * تسجيل كل العمليات المهمة
    */
   async logAudit(auditData, connection = null) {
     const dbClient = connection || this.db;
@@ -330,7 +321,7 @@ class FinancialService {
 
   /**
    * Get BI summary for dashboard
-   * ملخص الـ BI
+   * 
    */
   async getBISummary() {
     const [[summary]] = await this.db.execute(`

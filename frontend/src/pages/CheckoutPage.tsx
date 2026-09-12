@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 
 export default function CheckoutPage() {
   const navigate = useNavigate();
-  const { user, profile, isClientMode } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const { items, getTotal, clearCart } = useCartStore();
   const { mutateAsync: createOrder, isPending } = useCreateOrder();
   const { mutateAsync: createPayment } = useCreatePayment();
@@ -41,7 +41,7 @@ export default function CheckoutPage() {
 
   useEffect(() => {
     if (!user) { navigate('/login'); return; }
-    if (profile && profile.role !== 'customer' && !(profile.role === 'seller' && isClientMode)) {
+    if (profile && profile.role !== 'customer') {
       toast.error('Seuls les clients peuvent passer des commandes');
       navigate('/shop');
       return;

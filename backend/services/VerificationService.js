@@ -1,8 +1,8 @@
 /**
  * VerificationService
  * 
- * التحقق من صحة البيانات المالية
- * مثل: total = vendor + commission
+ * ا
+ *  total = vendor + commission
  */
 
 class VerificationService {
@@ -12,8 +12,7 @@ class VerificationService {
 
   /**
    * Verify BI integrity
-   * التحقق من أن كل الحسابات صحيحة
-   */
+   *   */
   async verifyBIIntegrity() {
     const issues = [];
 
@@ -82,7 +81,7 @@ class VerificationService {
 
   /**
    * Generate BI health report
-   * تقرير صحة الـ BI
+   * 
    */
   async generateHealthReport() {
     const integrity = await this.verifyBIIntegrity();
@@ -114,8 +113,7 @@ class VerificationService {
 
   /**
    * Log verification result
-   * تسجيل نتائج التحقق
-   */
+   *    */
   async logVerification(report) {
     await this.db.execute(`
       INSERT INTO bi_verification_log (report, is_valid, created_at)

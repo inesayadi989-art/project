@@ -30,7 +30,7 @@ async function createTestUsers() {
     const [adminResult] = await db.execute(
       `INSERT INTO profiles (email, full_name, role, password_hash, phone, created_at, updated_at) 
        VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-      ['admin@souk.tn', 'Admin Souk', 'admin', adminPasswordHash, '+216 00 000 000']
+      ['admin@souk.tn', 'Admin Souk', 'admin', adminPasswordHash, '+216 51 555 333']
     );
     console.log('✅ Admin user created (ID: ' + adminResult.insertId + ')');
 
@@ -38,7 +38,7 @@ async function createTestUsers() {
     const [sellerResult] = await db.execute(
       `INSERT INTO profiles (email, full_name, role, password_hash, phone, created_at, updated_at) 
        VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-      ['seller@souk.tn', 'Seller Test', 'seller', sellerPasswordHash, '+216 00 000 001']
+      ['seller@souk.tn', 'Seller Test', 'seller', sellerPasswordHash, '+216 51 555 333']
     );
     console.log('✅ Seller user created (ID: ' + sellerResult.insertId + ')');
 
@@ -51,11 +51,21 @@ async function createTestUsers() {
     );
     console.log('✅ Store created for seller');
 
+    // Create active subscription for seller
+    const now = new Date();
+    const endDate = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000); // 30 days
+    const [subResult] = await db.execute(
+      `INSERT INTO seller_subscriptions (seller_id, plan_name, plan_price, amount, status, payment_status, start_date, end_date, created_at, updated_at)
+       VALUES (?, ?, ?, ?, ?, ?, NOW(), ?, NOW(), NOW())`,
+      [sellerResult.insertId, 'Souk Business', 30, 30, 'active', 'paid', endDate.toISOString().split('T')[0]]
+    );
+    console.log('✅ Active subscription created for seller (ID: ' + subResult.insertId + ')');
+
     // Create customer user
     const [customerResult] = await db.execute(
       `INSERT INTO profiles (email, full_name, role, password_hash, phone, created_at, updated_at) 
        VALUES (?, ?, ?, ?, ?, NOW(), NOW())`,
-      ['customer@souk.tn', 'Customer Test', 'customer', customerPasswordHash, '+216 00 000 002']
+      ['customer@souk.tn', 'Customer Test', 'customer', customerPasswordHash, '+216 51 555 333']
     );
     console.log('✅ Customer user created (ID: ' + customerResult.insertId + ')');
 
@@ -67,7 +77,9 @@ async function createTestUsers() {
     console.log('  🔐 Password: admin123\n');
     console.log('Seller Account:');
     console.log('  📧 Email: seller@souk.tn');
-    console.log('  🔐 Password: seller123\n');
+    console.log('  🔐 Password: seller123');
+    console.log('  📦 Store: Boutique Test');
+    console.log('  ✅ Subscription: ACTIVE (30 days)\n');
     console.log('Customer Account:');
     console.log('  📧 Email: customer@souk.tn');
     console.log('  🔐 Password: customer123\n');

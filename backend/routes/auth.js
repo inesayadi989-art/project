@@ -90,7 +90,13 @@ router.post('/register', [
         [email, code, 'verify']
       );
 
-      await emailService.sendVerificationEmail(email, code);
+      // Try to send verification email, but don't fail registration if email fails
+      try {
+        await emailService.sendVerificationEmail(email, code);
+      } catch (emailError) {
+        console.warn('⚠️ Failed to send verification email:', emailError.message);
+        // Continue with registration - user can still use the app
+      }
     }
 
     res.status(201).json({
@@ -99,8 +105,12 @@ router.post('/register', [
     });
 
   } catch (error) {
-    console.error('Register error:', error);
-    res.status(500).json({ error: 'Internal server error' });
+    console.error('❌ Register error:', {
+      message: error.message,
+      stack: error.stack,
+      email: req.body?.email
+    });
+    res.status(500).json({ error: 'Failed to create account', details: error.message });
   }
 });
 

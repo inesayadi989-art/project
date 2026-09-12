@@ -78,6 +78,7 @@ export default function AIAdvisor() {
 
   const [open, setOpen] = useState(false);
   const [input, setInput] = useState("");
+  
   const [messages, setMessages] = useState<Message[]>([
     { role: "model", parts: [{ text: CONFIG.welcomeMessage }] }
   ]);

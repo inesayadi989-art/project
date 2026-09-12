@@ -282,20 +282,6 @@ export default function AdminUsers() {
                             <td className="px-4 py-3 text-sm text-gray-600">{nextPaymentDate}</td>
                             <td className="px-4 py-3 text-right">
                               <div className="flex items-center justify-end gap-2">
-                                {Number(store.wallet_balance || 0) >= 500 && (
-                                  <button
-                                    onClick={() => {
-                                      const ok = window.confirm('Marquer le paiement du vendeur comme effectué ?');
-                                      if (!ok) return;
-                                      markStorePaid.mutate({ storeId: store.id });
-                                    }}
-                                    disabled={markStorePaid.isLoading}
-                                    className="text-xs font-medium bg-green-600 text-white px-3 py-1.5 rounded-md hover:bg-green-700"
-                                  >
-                                    {markStorePaid.isLoading ? 'En cours...' : 'Marquer comme payé'}
-                                  </button>
-                                )}
-
                                 <button
                                   onClick={() => {
                                     banUser.mutate({ userId: store.owner_id, ban: !isOwnerBanned });

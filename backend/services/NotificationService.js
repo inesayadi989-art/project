@@ -112,11 +112,11 @@ class NotificationService {
   }
 
   /**
-   * 📦 ORDER LIFECYCLE NOTIFICATIONS
+   *  ORDER LIFECYCLE NOTIFICATIONS
    */
 
   /**
-   * 1️⃣ Client place une commande
+   * 1️Client place une commande
    * → Notify: Vendor (action required) + Customer (pending)
    */
   async notifyNewOrder(order, storeInfo, dbClient = null) {

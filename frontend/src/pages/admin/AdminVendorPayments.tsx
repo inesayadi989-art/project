@@ -107,6 +107,7 @@ export default function AdminVendorPayments() {
                       <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Téléphone</th>
                       <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Solde</th>
                       <th className="text-right text-xs font-semibold text-gray-500 uppercase px-4 py-3">Action</th>
+
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
@@ -117,13 +118,13 @@ export default function AdminVendorPayments() {
                           <p className="text-xs text-gray-500">{store.slug}</p>
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {store.full_name || 'N/A'}
+                          {store.full_name || '-'}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {store.email || 'N/A'}
+                          {store.email || '-'}
                         </td>
                         <td className="px-4 py-3 text-sm text-gray-600">
-                          {store.phone || 'N/A'}
+                          {store.phone || '-'}
                         </td>
                         <td className="px-4 py-3">
                           <span className="text-sm font-semibold text-gray-900">{Number(store.wallet_balance || 0).toFixed(2)} TND</span>
@@ -143,6 +144,7 @@ export default function AdminVendorPayments() {
                             {markStorePaid.isLoading ? 'En cours...' : 'Marquer payé'}
                           </button>
                         </td>
+
                       </tr>
                     ))}
                   </tbody>
@@ -169,19 +171,15 @@ export default function AdminVendorPayments() {
                       <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Boutique</th>
                       <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Vendeur</th>
                       <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Montant</th>
-                      <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Administrateur</th>
-                      <th className="text-left text-xs font-semibold text-gray-500 uppercase px-4 py-3">Note</th>
                       <th className="text-right text-xs font-semibold text-gray-500 uppercase px-4 py-3">Date</th>
                     </tr>
                   </thead>
                   <tbody className="divide-y divide-gray-50">
                     {settlements.map((settlement) => (
                       <tr key={settlement.id} className="hover:bg-gray-50">
-                        <td className="px-4 py-3 text-sm text-gray-700">{settlement.store_name || 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{settlement.seller_name || 'N/A'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{settlement.store_name || '-'}</td>
+                        <td className="px-4 py-3 text-sm text-gray-700">{settlement.seller_name || '-'}</td>
                         <td className="px-4 py-3 text-sm font-semibold text-gray-900">{Number(settlement.amount || 0).toFixed(2)} TND</td>
-                        <td className="px-4 py-3 text-sm text-gray-700">{settlement.admin_name || 'N/A'}</td>
-                        <td className="px-4 py-3 text-sm text-gray-600">{settlement.note || '-'}</td>
                         <td className="px-4 py-3 text-right text-sm text-gray-500">{new Date(settlement.created_at).toLocaleString('fr-FR')}</td>
                       </tr>
                     ))}

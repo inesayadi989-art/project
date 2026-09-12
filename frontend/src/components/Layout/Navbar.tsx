@@ -17,7 +17,7 @@ export default function Navbar() {
   const [searchQuery, setSearchQuery] = useState('');
   const navigate = useNavigate();
   const location = useLocation();
-  const { user, profile, signOut, isClientMode, setClientMode } = useAuthStore();
+  const { user, profile, signOut } = useAuthStore();
   const { getCount } = useCartStore();
   const { data: categories } = useCategories();
   const { data: notifications } = useSubscriptionNotifications({ enabled: !!user });

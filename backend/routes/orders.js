@@ -2,32 +2,9 @@ const express = require('express');
 const { body, validationResult } = require('express-validator');
 const { authenticateToken, requireSubscription, authenticateAdmin } = require('../middleware/auth');
 const NotificationService = require('../services/NotificationService');
+const { formatOrder, restoreOrderStock, settleOrderToStore } = require('../helpers/orders');
 
 const router = express.Router();
-
-// Helper function to format order data
-const formatOrder = (order) => {
-  // Parse shipping_address JSON if it's a string
-  if (order.shipping_address && typeof order.shipping_address === 'string') {
-    try {
-      order.shipping_address = JSON.parse(order.shipping_address);
-    } catch (e) {
-      console.error('Error parsing shipping address:', e);
-      order.shipping_address = {};
-    }
-  }
-
-  // Spread shipping address fields with ship_ prefix
-  if (order.shipping_address) {
-    order.ship_full_name = order.shipping_address.full_name || '';
-    order.ship_phone = order.shipping_address.phone || '';
-    order.ship_address_line1 = order.shipping_address.address_line1 || '';
-    order.ship_city = order.shipping_address.city || '';
-    order.ship_governorate = order.shipping_address.governorate || '';
-  }
-
-  return order;
-};
 
 // Get user orders
 router.get('/', authenticateToken, async (req, res) => {
@@ -256,8 +233,8 @@ router.post('/', authenticateToken, [
       [req.user.userId]
     );
 
-    if (!userProfiles.length || (userProfiles[0].role !== 'customer' && !(userProfiles[0].role === 'seller' && req.body.mode === 'client'))) {
-      return res.status(403).json({ error: 'Seuls les clients ou les vendeurs en mode client peuvent passer des commandes' });
+    if (!userProfiles.length || userProfiles[0].role !== 'customer') {
+      return res.status(403).json({ error: 'Seuls les clients peuvent passer des commandes' });
     }
 
     const { storeId, items, shippingAddress } = req.body;
@@ -366,30 +343,6 @@ router.post('/', authenticateToken, [
     res.status(500).json({ error: 'Internal server error' });
   }
 });
-
-const restoreOrderStock = async (db, orderId) => {
-  const [items] = await db.execute('SELECT product_id, quantity FROM order_items WHERE order_id = ?', [orderId]);
-  for (const item of items) {
-    await db.execute('UPDATE products SET stock = stock + ? WHERE id = ?', [item.quantity, item.product_id]);
-  }
-};
-
-const settleOrderToStore = async (db, order) => {
-  const [stores] = await db.execute('SELECT commission_rate, total_sales, total_revenue FROM stores WHERE id = ? LIMIT 1', [order.store_id]);
-  if (!stores.length) return;
-
-  const store = stores[0];
-  const commissionRate = parseFloat(store.commission_rate) || 0;
-  const vendorAmount = parseFloat(order.total) * (1 - commissionRate / 100);
-  const adminFee = parseFloat(order.total) - vendorAmount;
-
-  await db.execute(
-    'UPDATE stores SET total_sales = total_sales + ?, total_revenue = total_revenue + ? WHERE id = ?',
-    [order.total, vendorAmount, order.store_id]
-  );
-
-  return { vendorAmount, adminFee };
-};
 
 // Seller decision endpoint: accept or reject a pending order
 router.put('/:id/decision', authenticateToken, requireSubscription, [

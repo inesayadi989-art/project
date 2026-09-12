@@ -2,27 +2,9 @@
 const { body, validationResult } = require('express-validator');
 const FinancialService = require('../services/FinancialService');
 const NotificationService = require('../services/NotificationService');
+const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
-
-const authenticateToken = (req, res, next) => {
-  const authHeader = req.headers['authorization'];
-  const token = authHeader && authHeader.split(' ')[1];
-
-  if (!token) {
-    return res.status(401).json({ error: 'Access token required' });
-  }
-
-  const jwt = require('jsonwebtoken');
-  jwt.verify(token, process.env.JWT_SECRET, (err, user) => {
-    if (err) {
-      return res.status(403).json({ error: 'Invalid token' });
-    }
-
-    req.user = user;
-    next();
-  });
-};
 
 router.post('/create-payment', authenticateToken, [
   body('orderId').isInt(),
@@ -116,7 +98,7 @@ router.post('/create-payment', authenticateToken, [
       adminCommission = paymentResult.platformCommission;
       vendorAmount = paymentResult.vendorAmount;
 
-      // 🔔 Notify client and vendor: Payment received
+      //  Notify client and vendor: Payment received
       const notificationService = new NotificationService(db);
       const [storeRows] = await connection.execute(
         'SELECT owner_id, name FROM stores WHERE id = ? LIMIT 1',
@@ -139,7 +121,7 @@ router.post('/create-payment', authenticateToken, [
         try {
           await notificationService.notifyPaymentReceived(orderData, storeInfo, vendorAmount, adminCommission, connection);
         } catch (notifError) {
-          console.error('❌ Payment notification error:', notifError);
+          console.error(' Payment notification error:', notifError);
           // Don't fail payment if notifications fail
         }
       }

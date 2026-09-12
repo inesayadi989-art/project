@@ -85,9 +85,8 @@ export async function createInitialUsers() {
 
   for (const user of usersToCreate) {
     try {
-      console.log(`📧 جاري إنشاء: ${user.email}`);
+      console.log(`📧 Creating: ${user.email}`);
 
-      // إنشاء المستخدم في Authentication
       const { data: authData, error: authError } = await supabase.auth.signUp({
         email: user.email,
         password: user.password,
@@ -106,7 +105,6 @@ export async function createInitialUsers() {
       }
 
       if (authData?.user) {
-        // إنشاء ملف ملف الشخصي (Profile)
         const { error: profileError } = await supabase
           .from('profiles')
           .insert({
@@ -144,5 +142,5 @@ export async function createInitialUsers() {
   };
 }
 
-// مثال على الاستخدام:
+// Example usage:
 // await createInitialUsers();

@@ -114,6 +114,7 @@ export default function SellerDashboard() {
 
   const isSubscriptionExpired = subscription?.end_date && new Date(subscription.end_date) < new Date();
   const subscriptionAmount = subscription ? Number(subscription.amount) : 0;
+  const hasActiveSubscription = subscription?.status === 'active' && subscription?.payment_status === 'paid';
   const subscriptionStatusText = isSubscriptionExpired
     ? 'expired'
     : subscription?.status === 'active' && subscription?.payment_status === 'unpaid'
@@ -143,6 +144,13 @@ export default function SellerDashboard() {
 
   const handleCreateStore = async (event: React.FormEvent) => {
     event.preventDefault();
+    
+    // Check subscription before creating store
+    if (!hasActiveSubscription) {
+      toast.error('Vous devez avoir un abonnement actif pour créer une boutique.');
+      return;
+    }
+
     if (!userId) {
       toast.error('Impossible de créer la boutique sans utilisateur connecté.');
       return;
@@ -180,6 +188,57 @@ export default function SellerDashboard() {
   }
 
   if (!store) {
+    if (!hasActiveSubscription) {
+      return (
+        <div className="space-y-6">
+          <div>
+            <h1 className="text-2xl font-bold text-gray-900">Créer votre boutique</h1>
+            <p className="text-gray-500 text-sm mt-1">Activez votre abonnement vendeur pour créer une boutique.</p>
+          </div>
+
+          <div className="p-8 border border-amber-200 bg-amber-50 rounded-3xl text-center">
+            <div className="inline-block p-4 bg-amber-100 rounded-full mb-4">
+              <svg className="w-8 h-8 text-amber-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4v2m0 4v2" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-semibold text-gray-900 mb-2">Abonnement requis</h2>
+            <p className="text-gray-600 mb-6 max-w-md mx-auto">
+              Vous devez avoir un abonnement vendeur actif et payé pour créer une boutique et commencer à vendre sur Souk.tn.
+            </p>
+            <a href="/seller/subscription" className="btn-primary inline-block">
+              Activer mon abonnement
+            </a>
+          </div>
+
+          <div className="p-6 border border-gray-200 bg-white shadow-sm rounded-3xl">
+            <div className="space-y-2">
+              <p className="text-sm uppercase tracking-[0.16em] text-gray-500">Pourquoi un abonnement ?</p>
+              <h3 className="text-lg font-semibold text-gray-900">Avantages de l'abonnement vendeur</h3>
+            </div>
+            <div className="mt-5 grid gap-4 sm:grid-cols-2">
+              <div className="rounded-3xl bg-blue-50 p-4">
+                <p className="text-sm font-semibold text-blue-900">✓ Accès complet</p>
+                <p className="text-sm text-blue-600 mt-2">Accédez à tous les outils pour gérer votre boutique.</p>
+              </div>
+              <div className="rounded-3xl bg-green-50 p-4">
+                <p className="text-sm font-semibold text-green-900">✓ Support prioritaire</p>
+                <p className="text-sm text-green-600 mt-2">Bénéficiez d'un support dédié pour votre boutique.</p>
+              </div>
+              <div className="rounded-3xl bg-purple-50 p-4">
+                <p className="text-sm font-semibold text-purple-900">✓ Visibilité accrue</p>
+                <p className="text-sm text-purple-600 mt-2">Votre boutique sera mieux référencée sur la plateforme.</p>
+              </div>
+              <div className="rounded-3xl bg-orange-50 p-4">
+                <p className="text-sm font-semibold text-orange-900">✓ Outils avancés</p>
+                <p className="text-sm text-orange-600 mt-2">Utilisez des fonctionnalités exclusives pour optimiser vos ventes.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-6">
         <div>

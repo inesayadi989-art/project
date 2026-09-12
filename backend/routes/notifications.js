@@ -5,7 +5,7 @@ const NotificationService = require('../services/NotificationService');
 const router = express.Router();
 
 /**
- * 🔔 NOTIFICATIONS ROUTES
+ *  NOTIFICATIONS ROUTES
  * 
  * Permet aux clients et vendeurs de récupérer et gérer leurs notifications
  */

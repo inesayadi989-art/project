@@ -12,8 +12,6 @@ interface AuthState {
   subscriptionStatus: 'idle' | 'loading' | 'success' | 'error';
   subscriptionError: string | null;
   loading: boolean;
-  isClientMode: boolean;
-  setClientMode: (enabled: boolean) => void;
   initialize: () => Promise<void>;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, fullName: string, role: 'customer' | 'seller') => Promise<void>;
@@ -31,15 +29,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   subscriptionStatus: 'idle',
   subscriptionError: null,
   loading: true,
-  isClientMode: false,
-  setClientMode: (enabled: boolean) => {
-    set({ isClientMode: enabled });
-    try {
-      localStorage.setItem('seller_view_mode', enabled ? 'client' : 'seller');
-    } catch (error) {
-      console.error('Failed to save seller mode:', error);
-    }
-  },
 
   initialize: async () => {
     try {
@@ -48,11 +37,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Verify token by getting profile
         try {
           const { user } = await api.getProfile();
-          const savedMode = localStorage.getItem('seller_view_mode');
           set({
             user: { id: user.id.toString(), email: user.email },
             profile: user,
-            isClientMode: user.role === 'seller' && savedMode === 'client'
           });
           localStorage.setItem('user_id', user.id.toString());
           useCartStore.getState().loadCart(user.id.toString());
@@ -90,11 +77,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   signIn: async (email: string, password: string) => {
     const response = await api.signIn(email, password);
     const userId = response.user.id.toString();
-    const savedMode = localStorage.getItem('seller_view_mode');
     set({
       user: { id: userId, email: response.user.email },
       profile: response.user,
-      isClientMode: response.user.role === 'seller' && savedMode === 'client',
       loading: false
     });
     localStorage.setItem('user_id', userId);
@@ -127,13 +112,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({
         user: { id: userId, email: response.user.email },
         profile: response.user,
-        isClientMode: false,
         loading: false
       });
       localStorage.setItem('user_id', userId);
-      if (role === 'seller') {
-        localStorage.setItem('seller_view_mode', 'seller');
-      }
       useCartStore.getState().loadCart(userId);
 
       // Fetch subscription for sellers
@@ -163,9 +144,8 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   signOut: async () => {
     await api.signOut();
-    set({ user: null, profile: null, subscription: null, subscriptionStatus: 'idle', subscriptionError: null, isClientMode: false });
+    set({ user: null, profile: null, subscription: null, subscriptionStatus: 'idle', subscriptionError: null });
     localStorage.removeItem('user_id');
-    localStorage.removeItem('seller_view_mode');
     useCartStore.getState().clearCart();
   },
 

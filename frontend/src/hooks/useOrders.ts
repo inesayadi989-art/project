@@ -28,7 +28,6 @@ interface CreateOrderInput {
 
 export function useCreateOrder() {
   const queryClient = useQueryClient();
-  const { isClientMode } = useAuthStore();
 
   return useMutation({
     mutationFn: async (input: CreateOrderInput) => {
@@ -68,7 +67,6 @@ export function useCreateOrder() {
           city: input.shipCity,
           governorate: input.shipGovernorate,
         },
-        ...(isClientMode ? { mode: 'client' } : {}),
       };
       return await api.createOrder(orderData);
     },

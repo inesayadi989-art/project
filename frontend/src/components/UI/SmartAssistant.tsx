@@ -129,7 +129,7 @@ const ChatMessage = ({ message, isUser, products, recommendations, metadata }) =
               onClick={() => toggleCategory('alternatives')}
               className="text-sm font-bold text-gray-700 hover:text-gray-900 flex items-center gap-1"
             >
-              ⭐ Also Consider ({recommendations.alternatives.length})
+               Also Consider ({recommendations.alternatives.length})
               <span className={`transform transition ${expandedCategories.alternatives ? 'rotate-180' : ''}`}>▼</span>
             </button>
             {expandedCategories.alternatives && recommendations.alternatives.map((product, idx) => (
@@ -144,8 +144,7 @@ const ChatMessage = ({ message, isUser, products, recommendations, metadata }) =
             <button 
               onClick={() => toggleCategory('bestForYou')}
               className="text-sm font-bold text-green-700 hover:text-green-900 flex items-center gap-1"
-            >
-              ✨ Best for you ({recommendations.bestForYou.length})
+            > Best for you ({recommendations.bestForYou.length})
               <span className={`transform transition ${expandedCategories.bestForYou ? 'rotate-180' : ''}`}>▼</span>
             </button>
             {expandedCategories.bestForYou && recommendations.bestForYou.map((product, idx) => (
@@ -161,7 +160,7 @@ const ChatMessage = ({ message, isUser, products, recommendations, metadata }) =
               onClick={() => toggleCategory('cheaperOption')}
               className="text-sm font-bold text-blue-700 hover:text-blue-900 flex items-center gap-1"
             >
-              💰 Budget-friendly ({recommendations.cheaperOption.length})
+               Budget-friendly ({recommendations.cheaperOption.length})
               <span className={`transform transition ${expandedCategories.cheaperOption ? 'rotate-180' : ''}`}>▼</span>
             </button>
             {expandedCategories.cheaperOption && recommendations.cheaperOption.map((product, idx) => (
@@ -177,7 +176,7 @@ const ChatMessage = ({ message, isUser, products, recommendations, metadata }) =
               onClick={() => toggleCategory('premiumOption')}
               className="text-sm font-bold text-purple-700 hover:text-purple-900 flex items-center gap-1"
             >
-              👑 Premium choice ({recommendations.premiumOption.length})
+               Premium choice ({recommendations.premiumOption.length})
               <span className={`transform transition ${expandedCategories.premiumOption ? 'rotate-180' : ''}`}>▼</span>
             </button>
             {expandedCategories.premiumOption && recommendations.premiumOption.map((product, idx) => (

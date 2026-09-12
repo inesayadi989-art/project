@@ -12,7 +12,7 @@ import toast from 'react-hot-toast';
 
 export default function ProductPage() {
   const { id } = useParams<{ id: string }>();
-  const { user, profile, isClientMode } = useAuthStore();
+  const { user, profile } = useAuthStore();
   const { addItem } = useCartStore();
   const [quantity, setQuantity] = useState(1);
   const [selectedImageIndex, setSelectedImageIndex] = useState(0);
@@ -27,11 +27,9 @@ export default function ProductPage() {
 
   const handleAddToCart = () => {
     if (!user) { toast.error('Connectez-vous pour ajouter au panier'); return; }
-    // Only customers or sellers in client mode can add to cart
-    if (profile?.role !== 'customer' && !(profile?.role === 'seller' && isClientMode)) {
-      if (profile?.role === 'seller') {
-        toast.error('Activez le mode client pour ajouter au panier');
-      }
+    // Only customers can add to cart
+    if (profile?.role !== 'customer') {
+      toast.error('Seuls les clients peuvent ajouter au panier');
       return;
     }
     if (!product) return;
