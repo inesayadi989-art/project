@@ -12,4 +12,8 @@
     "start:all": "start cmd /k \"cd /d %cd%\\frontend && npm run dev\" & start cmd /k \"cd /d %cd%\\backend && npm run dev\"",
     "setup-db": "npm --workspace backend run setup"
   }
+  ,"optionalDependencies": {
+    "@rollup/rollup-linux-x64-gnu": "*",
+    "lightningcss-linux-x64-gnu": "*"
+  }
 }
