@@ -12,8 +12,12 @@ Required GitHub repository secrets:
 
 How to trigger:
 
-1. Push to `main` branch.
+1. Push to `main` branch (or open a PR from `ci/deploy-workflows`).
 2. Actions will run: frontend builds and is deployed to Vercel; backend CI runs.
+
+Create a PR for review:
+
+- Open: https://github.com/inesayadi989-art/project and create a PR from `ci/deploy-workflows` → `main`.
 
 Notes:
 
