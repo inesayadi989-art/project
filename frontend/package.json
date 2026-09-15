@@ -8,7 +8,7 @@
     "build": "vite build",
     "lint": "eslint .",
     "preview": "vite preview",
-    "postinstall": "node ./scripts/install-native.js || true"
+    "postinstall": "node ./scripts/install-native.cjs || true"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.99.0",
