@@ -21,10 +21,11 @@ const app = express();
 const PORT = process.env.PORT || 5000;
 
 // Middleware
-app.use(cors({
-  origin: true,
+const corsOptions = {
+  origin: process.env.FRONTEND_URL ? process.env.FRONTEND_URL : true,
   credentials: true
-}));
+};
+app.use(cors(corsOptions));
 
 app.use(express.urlencoded({ 
   extended: true,
@@ -46,22 +47,44 @@ app.use('/uploads', express.static(uploadsDir));
 
 // Database connection pool
 let db;
-function connectDB() {
-  try {
-    db = mysql.createPool({
-      host: process.env.DB_HOST || 'localhost',
-      user: process.env.DB_USER || 'root',
-      password: process.env.DB_PASSWORD || '',
-      database: process.env.DB_NAME || 'souk_tn',
-      charset: 'utf8mb4',
-      waitForConnections: true,
-      connectionLimit: 10,
-      queueLimit: 0
-    });
-    console.log('✅ Connected to MySQL database pool');
-  } catch (error) {
-    console.error('❌ Database connection failed:', error);
-    process.exit(1);
+
+async function wait(ms) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
+}
+
+async function connectDB({ retries = 5, delay = 2000 } = {}) {
+  const cfg = {
+    host: process.env.DB_HOST || 'localhost',
+    port: process.env.DB_PORT ? parseInt(process.env.DB_PORT, 10) : 3306,
+    user: process.env.DB_USER || 'root',
+    password: process.env.DB_PASSWORD || '',
+    database: process.env.DB_NAME || 'souk_tn',
+    charset: 'utf8mb4',
+    waitForConnections: true,
+    connectionLimit: 10,
+    queueLimit: 0
+  };
+
+  db = mysql.createPool(cfg);
+
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const conn = await db.getConnection();
+      conn.release();
+      console.log('✅ Connected to MySQL database pool');
+      return;
+    } catch (err) {
+      console.warn(`⚠️  MySQL connection attempt ${attempt} failed: ${err.message}`);
+      if (attempt < retries) {
+        console.log(`Retrying in ${delay}ms...`);
+        await wait(delay);
+        delay *= 2; // exponential backoff
+        continue;
+      }
+      console.error('❌ Could not connect to MySQL after multiple attempts:', err);
+      // do not exit process immediately; allow process manager to restart or let app run degraded
+      return;
+    }
   }
 }
 
@@ -99,12 +122,24 @@ app.use('*', (req, res) => {
 });
 
 // Start server
-function startServer() {
-  connectDB();
+async function startServer() {
+  await connectDB();
   app.listen(PORT, () => {
     console.log(`🚀 Server running on port ${PORT}`);
     console.log(`📡 API available at http://localhost:${PORT}/api`);
   });
 }
 
-startServer();
+startServer().catch((err) => {
+  console.error('Fatal error starting server:', err);
+  process.exit(1);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.error('Unhandled Rejection at:', reason);
+});
+
+process.on('uncaughtException', (err) => {
+  console.error('Uncaught Exception thrown:', err);
+  // depending on the error you may want to exit process
+});
