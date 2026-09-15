@@ -8,7 +8,6 @@ try {
     console.log('Installing lightningcss native binaries for Linux...');
     execSync('npm install --no-save lightningcss-linux-x64-gnu @rollup/rollup-linux-x64-gnu', { stdio: 'inherit' });
     try {
-      // attempt to copy the native .node file into the lightningcss package root
       const cwd = process.cwd();
       const lightningPkgJson = require.resolve('lightningcss/package.json', { paths: [cwd] });
       const lightningRoot = path.dirname(lightningPkgJson);
@@ -29,6 +28,6 @@ try {
     console.log('Non-linux platform, skipping native binary install.');
   }
 } catch (err) {
-  console.error('Failed to install native binaries:', err.message);
+  console.error('Failed to install native binaries:', err && err.message ? err.message : err);
   process.exit(0);
 }
